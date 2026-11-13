@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gibraltar ALS Cover</title>
+<style>
+:root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#18283d;background:#f3f6fb}*{box-sizing:border-box}body{margin:0}header{background:#102b4c;color:white;padding:22px max(20px,calc((100vw - 1050px)/2))}header h1{margin:0;font-size:24px}header p{margin:5px 0 0;color:#c8d6e8}main{max-width:1050px;margin:auto;padding:22px}nav{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}button,select,input{font:inherit;border-radius:9px;padding:10px 12px}button{cursor:pointer;border:0;background:#1265ba;color:white}button:hover{filter:brightness(.94)}button.secondary{background:#e6edf6;color:#163a60}button.danger{background:#a92b3b}button:disabled{opacity:.5;cursor:not-allowed}nav button.active{background:#102b4c}input,select{border:1px solid #cbd5e1;background:white;max-width:100%}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card,.panel{background:white;border:1px solid #e0e7f0;border-radius:14px;padding:18px;box-shadow:0 2px 8px #12223b09}.metric{font-size:32px;font-weight:750}.muted{color:#64748b}.red{color:#b3263c}.green{color:#14764d}.fixtures{display:grid;gap:12px}.fixture-top,.actions,.toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.fixture h3{margin:10px 0}.pill{font-size:12px;border-radius:100px;padding:5px 10px;background:#fff0f0;color:#a92b3b;font-weight:700}.pill.ok{background:#e3f8eb;color:#176b42}.pill.cancelled{background:#eceff3;color:#526070}.actions{justify-content:flex-start;margin-top:12px}.notice{padding:12px;background:#fff4d9;border-radius:10px;margin:14px 0}table{width:100%;border-collapse:collapse}td,th{padding:12px 6px;border-bottom:1px solid #e5eaf1;text-align:left}th{color:#526070}.hidden{display:none}.small{font-size:13px}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.spaced{margin:16px 0}@media(max-width:600px){.cards{grid-template-columns:1fr 1fr}.cards .card:last-child{grid-column:span 2}main{padding:14px}header{padding:20px}.metric{font-size:27px}td,th{font-size:13px}}
+</style>
+</head>
+<body>
+<header><h1>⚕ Gibraltar ALS Cover</h1><p>Football League · Management dashboard · DEMO</p></header>
+<main>
+<div class="cards" id="metrics"></div>
+<div id="alert" class="notice"></div>
+<nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button></nav>
+<section id="fixtures"><div class="toolbar spaced"><h2>Match assignments</h2><select id="filter"><option value="all">All matches</option><option value="uncovered">Uncovered</option><option value="covered">Covered</option><option value="cancelled">Cancelled</option></select></div><div id="fixtureList" class="fixtures"></div></section>
+<section id="staff" class="hidden"><div class="panel"><h2>Registered first aiders</h2><div id="staffList"></div><form id="addStaff" class="row spaced"><input id="staffName" placeholder="First aider's name" required maxlength="80"><button>Add first aider</button></form><p class="muted small">Demo only: this does not send an invitation or create an account.</p></div></section>
+<section id="reports" class="hidden"><div class="panel"><h2>Monthly attendance summary</h2><label>Month <input type="month" id="month" value="2026-11"></label><div id="reportTable" class="spaced"></div><button id="export">Download CSV report</button><p class="muted small">Only verified attendance counts towards completed matches. This is a check, not payroll.</p></div></section>
+<p class="muted small">All fixtures and names are fictional examples. Changes are stored only in this browser for demonstration; they are not shared with other users.</p>
+</main>
+<script>
+const sampleMatches=[
+{id:1,home:'Lincoln Red Imps',away:"St Joseph’s",date:'2026-11-20',time:'21:00',staff:'Sarah M.',status:'scheduled',attended:false},
+{id:2,home:'Europa FC',away:'Lynx FC',date:'2026-11-21',time:'16:30',staff:null,status:'scheduled',attended:false},
+{id:3,home:'FC Magpies',away:'Glacis United',date:'2026-11-22',time:'19:30',staff:'Daniel R.',status:'scheduled',attended:false},
+{id:4,home:'College 1975',away:'Mons Calpe',date:'2026-11-27',time:'18:00',staff:null,status:'scheduled',attended:false},
+{id:5,home:'Europa Point',away:'Manchester 62',date:'2026-11-28',time:'16:30',staff:'James C.',status:'scheduled',attended:false},
+{id:6,home:'Lions Gibraltar',away:'Lincoln Red Imps',date:'2026-11-29',time:'19:30',staff:null,status:'scheduled',attended:false}
+];
+const defaults={matches:sampleMatches,staff:['Sarah M.','Daniel R.','James C.','Emma P.']};
+let state;try{state=JSON.parse(localStorage.getItem('als-cover-demo'))||structuredClone(defaults)}catch{state=structuredClone(defaults)}
+if(!Array.isArray(state.matches)||!Array.isArray(state.staff))state=structuredClone(defaults);
+const $=id=>document.getElementById(id);const save=()=>localStorage.setItem('als-cover-demo',JSON.stringify(state));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(){let active=state.matches.filter(m=>m.status==='scheduled');let covered=active.filter(m=>m.staff).length;let open=active.length-covered;
+$('metrics').innerHTML=`<div class="card"><div class="metric">${active.length}</div><div class="muted">Scheduled matches</div></div><div class="card"><div class="metric green">${covered}</div><div class="muted">Covered</div></div><div class="card"><div class="metric red">${open}</div><div class="muted">Need ALS cover</div></div>`;
+$('alert').textContent=open?`⚠ ${open} match${open===1?'':'es'} currently need ALS cover.`:'✓ All scheduled matches have ALS cover.';
+let filter=$('filter').value;let list=state.matches.filter(m=>filter==='all'||filter==='cancelled'&&m.status==='cancelled'||filter==='covered'&&m.status==='scheduled'&&m.staff||filter==='uncovered'&&m.status==='scheduled'&&!m.staff);
+$('fixtureList').innerHTML=list.map(m=>{let cancelled=m.status==='cancelled';let status=cancelled?'Cancelled':m.staff?'Covered':'Needs ALS';let options=state.staff.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');return `<article class="card fixture"><div class="fixture-top"><span class="muted">${esc(m.date)} · ${esc(m.time)} · Victoria Stadium</span><span class="pill ${cancelled?'cancelled':m.staff?'ok':''}">${status}</span></div><h3>${esc(m.home)} vs ${esc(m.away)}</h3><p>${m.staff?'Assigned: <strong>'+esc(m.staff)+'</strong>':'No first aider assigned'}</p><div class="actions">${!cancelled&&!m.staff?`<select aria-label="Select first aider" id="assign-${m.id}"><option value="">Choose first aider</option>${options}</select><button data-action="assign" data-id="${m.id}">Assign</button>`:''}${m.staff?`<button class="secondary" data-action="release" data-id="${m.id}">Release assignment</button>`:''}${!cancelled&&m.staff?`<label><input type="checkbox" data-action="attendance" data-id="${m.id}" ${m.attended?'checked':''}> Attendance verified</label>`:''}<button class="secondary" data-action="cancel" data-id="${m.id}">${cancelled?'Restore fixture':'Mark cancelled'}</button></div></article>`}).join('')||'<p>No matches in this category.</p>';
+$('staffList').innerHTML=state.staff.map(n=>`<p>👤 <strong>${esc(n)}</strong> <span class="muted">— ${active.filter(m=>m.staff===n).length} assigned</span></p>`).join('');renderReport();}
+function renderReport(){let month=$('month').value;let rows=state.staff.map(n=>({name:n,assigned:state.matches.filter(m=>m.staff===n&&m.status==='scheduled'&&m.date.startsWith(month)).length,verified:state.matches.filter(m=>m.staff===n&&m.status==='scheduled'&&m.attended&&m.date.startsWith(month)).length}));$('reportTable').innerHTML=`<table><thead><tr><th>First aider</th><th>Assigned</th><th>Verified</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.assigned}</td><td>${r.verified}</td></tr>`).join('')}</tbody></table>`;return rows;}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['fixtures','staff','reports'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))}));
+$('filter').addEventListener('change',render);$('month').addEventListener('change',renderReport);
+$('fixtureList').addEventListener('click',e=>{let b=e.target.closest('button[data-action]');if(!b)return;let m=state.matches.find(x=>x.id===Number(b.dataset.id));if(!m)return;switch(b.dataset.action){case 'assign':{if(m.staff||m.status!=='scheduled')return;let n=$('assign-'+m.id).value;if(!n)return;m.staff=n;m.attended=false;break}case 'release':m.staff=null;m.attended=false;break;case 'cancel':m.status=m.status==='cancelled'?'scheduled':'cancelled';m.attended=false;break}save();render()});
+$('fixtureList').addEventListener('change',e=>{if(e.target.dataset.action!=='attendance')return;let m=state.matches.find(x=>x.id===Number(e.target.dataset.id));if(m&&m.staff&&m.status==='scheduled'){m.attended=e.target.checked;save();render()}});
+$('addStaff').addEventListener('submit',e=>{e.preventDefault();let n=$('staffName').value.trim();if(!n||state.staff.some(x=>x.toLowerCase()===n.toLowerCase()))return;state.staff.push(n);$('staffName').value='';save();render()});
+$('export').addEventListener('click',()=>{let rows=renderReport();let csv=[['First aider','Assigned matches','Verified attendance'],...rows.map(r=>[r.name,r.assigned,r.verified])].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');let blob=new Blob([csv],{type:'text/csv;charset=utf-8'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`als-cover-${$('month').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+render();
+</script>
+</body>
+</html>
