@@ -18,7 +18,21 @@
 <section id="fixtures"><div class="toolbar spaced"><h2>Match assignments</h2><select id="filter"><option value="all">All matches</option><option value="uncovered">Uncovered</option><option value="covered">Covered</option><option value="cancelled">Cancelled</option></select></div><div id="fixtureList" class="fixtures"></div><div class="panel spaced"><h3>Add fixture</h3><form id="addFixture" class="row"><input id="home" placeholder="Home team" required maxlength="100"><input id="away" placeholder="Away team" required maxlength="100"><input id="date" type="date" required><input id="time" type="time" required><button>Add fixture</button></form></div></section>
 <section id="staff" class="hidden"><div class="panel"><h2>Registered first aiders</h2><div id="staffList"></div><form id="addStaff" class="row spaced"><input id="staffName" placeholder="First aider's name" required maxlength="80"><button>Add first aider</button></form><p class="muted small">Adding a name does not create a login account.</p></div></section>
 <section id="reports" class="hidden"><div class="panel"><h2>Monthly attendance summary</h2><label>Month <input type="month" id="month"></label><div id="reportTable" class="spaced"></div><button id="export">Download CSV report</button><p class="muted small">Only verified attendance counts towards completed matches. This is a check, not payroll.</p></div></section>
-</div><p id="message" class="notice hidden" role="alert"></p>
+
+</div>
+
+<section id="firstAiderApp" class="panel hidden">
+  <div class="toolbar spaced">
+    <h2>My ALS Cover Dashboard</h2>
+    <button id="firstAiderLogout" class="secondary">Sign out</button>
+  </div>
+
+  <p id="firstAiderWelcome"></p>
+
+  <h3>My assigned fixtures</h3>
+  <div id="myFixtures"></div>
+</section>
+<p id="message" class="notice hidden" role="alert"></p>
 </main>
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
@@ -66,10 +80,18 @@ async function initialise() {
 
   const firstAider = await checkFirstAider(currentUser);
 
-  if (firstAider) {
-    showLogin("First aider account recognised. Dashboard setup is next.");
-    return;
-  }
+  
+if (firstAider) {
+  $('login').classList.add('hidden');
+  $('app').classList.add('hidden');
+  $('firstAiderApp').classList.remove('hidden');
+
+  $('firstAiderWelcome').textContent =
+    'Welcome, ' + firstAider.name;
+
+  return;
+}
+
 
   await db.auth.signOut();
   showLogin("This account is not authorised.");
@@ -88,7 +110,21 @@ async function run(operation){try{notice('');await operation();await refresh()}c
 async function updateFixture(id,values){const {error}=await db.from('fixtures').update(values).eq('id',id);if(error)throw error}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginError').textContent='Signing in…';const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});$('password').value='';if(error){showLogin(error.message);return}try{if(!await checkAdmin(data.user)){await db.auth.signOut();showLogin('This account is not authorised as an administrator.');return}currentUser=data.user;showApp();await refresh()}catch(err){showLogin(err.message)}});
 $('logout').addEventListener('click',async()=>{await db.auth.signOut();currentUser=null;state={matches:[],staff:[]};showLogin()});
-document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['fixtures','staff','reports'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))}));
+
+$('firstAiderLogout').addEventListener('click', async () => {
+  const { error } = await db.auth.signOut();
+
+  if (error) {
+    alert('Unable to sign out: ' + error.message);
+    return;
+  }
+
+  currentUser = null;
+  $('firstAiderApp').classList.add('hidden');
+  showLogin();
+});
+
+  document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['fixtures','staff','reports'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))}));
 $('filter').addEventListener('change',render);$('month').addEventListener('change',renderReport);
 $('fixtureList').addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const m=state.matches.find(x=>x.id===Number(b.dataset.id));if(!m)return;run(async()=>{let values;if(b.dataset.action==='assign'){const selected=$('assign-'+m.id)?.value;if(!selected||m.assigned_staff_id||m.status!=='scheduled')return;values={assigned_staff_id:Number(selected),attended:false}}else if(b.dataset.action==='release'){values={assigned_staff_id:null,attended:false}}else if(b.dataset.action==='cancel'){values={status:m.status==='cancelled'?'scheduled':'cancelled',attended:false}}else return;await updateFixture(m.id,values)})});
 $('fixtureList').addEventListener('change',e=>{if(e.target.dataset.action!=='attendance')return;const m=state.matches.find(x=>x.id===Number(e.target.dataset.id));if(m?.assigned_staff_id&&m.status==='scheduled')run(()=>updateFixture(m.id,{attended:e.target.checked}))});
