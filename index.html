@@ -10,7 +10,7 @@
 <body>
 <header><h1>⚕ Gibraltar ALS Cover</h1><p>Football League · Administrator dashboard</p></header>
 <main>
-<section id="login" class="panel"><h2>Administrator sign in</h2><p class="muted">Sign in with your authorised Supabase account.</p><form id="loginForm" class="row"><input id="email" type="email" placeholder="Email address" required autocomplete="username"><input id="password" type="password" placeholder="Password" required autocomplete="current-password"><button>Sign in</button></form><p id="loginError" class="red" role="alert"></p></section>
+<section id="login" class="panel"><h2>Gibraltar ALS Cover — Sign in</h2><p class="muted">Sign in with your authorised Supabase account.</p><form id="loginForm" class="row"><input id="email" type="email" placeholder="Email address" required autocomplete="username"><input id="password" type="password" placeholder="Password" required autocomplete="current-password"><button>Sign in</button></form><p id="loginError" class="red" role="alert"></p></section>
 <div id="app" class="hidden">
 <div class="toolbar spaced"><span id="signedIn" class="muted"></span><button id="logout" class="secondary">Sign out</button></div>
 <div class="cards" id="metrics"></div><div id="alert" class="notice" role="status"></div>
@@ -32,7 +32,49 @@ function notice(message){$('message').textContent=message;$('message').classList
 function showLogin(message=''){$('login').classList.remove('hidden');$('app').classList.add('hidden');$('loginError').textContent=message;notice('')}
 function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden');$('signedIn').textContent='Signed in: '+(currentUser?.email||'Administrator');$('loginError').textContent=''}
 async function checkAdmin(user){const {data,error}=await db.from('admin_users').select('user_id').eq('user_id',user.id).maybeSingle();if(error)throw error;return !!data}
-async function initialise(){const {data:{session},error}=await db.auth.getSession();if(error)throw error;if(!session){showLogin();return}if(!await checkAdmin(session.user)){await db.auth.signOut();showLogin('This account is not authorised as an administrator.');return}currentUser=session.user;showApp();await refresh()}
+
+async function checkFirstAider(user) {
+  const { data, error } = await db
+    .from('first_aiders')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data;
+}
+
+  
+async function initialise() {
+  const { data: { session }, error } = await db.auth.getSession();
+
+  if (error) throw error;
+
+  if (!session) {
+    showLogin();
+    return;
+  }
+
+  currentUser = session.user;
+
+  if (await checkAdmin(currentUser)) {
+    showApp();
+    await refresh();
+    return;
+  }
+
+  const firstAider = await checkFirstAider(currentUser);
+
+  if (firstAider) {
+    showLogin("First aider account recognised. Dashboard setup is next.");
+    return;
+  }
+
+  await db.auth.signOut();
+  showLogin("This account is not authorised.");
+}
+
 async function refresh(){const [s,f]=await Promise.all([db.from('first_aiders').select('id,name').order('name'),db.from('fixtures').select('id,home_team,away_team,match_date,match_time,assigned_staff_id,status,attended').order('match_date').order('match_time')]);if(s.error)throw s.error;if(f.error)throw f.error;state.staff=s.data;state.matches=f.data;render();notice('')}
 function staffName(id){return state.staff.find(s=>s.id===id)?.name||null}
 function render(){const active=state.matches.filter(m=>m.status==='scheduled');const covered=active.filter(m=>m.assigned_staff_id).length;const open=active.length-covered;
