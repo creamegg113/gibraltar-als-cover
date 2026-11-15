@@ -59,6 +59,19 @@ async function checkFirstAider(user) {
   return data;
 }
 
+async function respondToFixture(fixtureId, response) {
+  const { error } = await db.rpc('respond_to_fixture', {
+    p_fixture_id: fixtureId,
+    p_response: response
+  });
+
+  if (error) {
+    console.error('Fixture response error:', error);
+    alert('Unable to save your response: ' + error.message);
+    throw error;
+  }
+}
+
 async function loadMyFixtures(firstAiderId) {
   const { data, error } = await db
     .from('fixtures')
@@ -97,6 +110,26 @@ async function loadMyFixtures(firstAiderId) {
 const confirmation = document.createElement('p');
 confirmation.textContent = `Your response: ${match.confirmation_status}`;
 
+
+if (match.confirmation_status === 'pending') {
+  const acceptBtn = document.createElement('button');
+  acceptBtn.textContent = 'Accept';
+
+  const declineBtn = document.createElement('button');
+  declineBtn.textContent = 'Decline';
+
+  acceptBtn.onclick = async () => {
+    await respondToFixture(match.id, 'accepted');
+    await loadMyFixtures(firstAiderId);
+  };
+
+  declineBtn.onclick = async () => {
+    await respondToFixture(match.id, 'declined');
+    await loadMyFixtures(firstAiderId);
+  };
+
+  card.append(acceptBtn, declineBtn);
+}
 
     
 card.append(heading, details, status, confirmation);
