@@ -93,8 +93,14 @@ async function loadMyFixtures(firstAiderId) {
 
     const status = document.createElement('p');
     status.textContent = `Status: ${match.status}`;
+    
+const confirmation = document.createElement('p');
+confirmation.textContent = `Your response: ${match.confirmation_status}`;
 
-    card.append(heading, details, status);
+
+    
+card.append(heading, details, status, confirmation);
+
     container.appendChild(card);
   });
 }
