@@ -59,6 +59,44 @@ async function checkFirstAider(user) {
   return data;
 }
 
+async function loadMyFixtures(firstAiderId) {
+  const { data, error } = await db
+    .from('fixtures')
+    .select('home_team, away_team, match_date, match_time, status, attended')
+    .eq('assigned_staff_id', firstAiderId)
+    .order('match_date', { ascending: true })
+    .order('match_time', { ascending: true });
+
+  if (error) throw error;
+
+  const container = $('myFixtures');
+  container.replaceChildren();
+
+  if (!data || data.length === 0) {
+    container.textContent = 'No fixtures currently assigned.';
+    return;
+  }
+
+  data.forEach(match => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginTop = '12px';
+
+    const heading = document.createElement('h3');
+    heading.textContent = `${match.home_team} vs ${match.away_team}`;
+
+    const details = document.createElement('p');
+    details.textContent =
+      `${match.match_date} at ${String(match.match_time).slice(0, 5)}`;
+
+    const status = document.createElement('p');
+    status.textContent = `Status: ${match.status}`;
+
+    card.append(heading, details, status);
+    container.appendChild(card);
+  });
+}
+
   
 async function initialise() {
   const { data: { session }, error } = await db.auth.getSession();
@@ -88,6 +126,7 @@ if (firstAider) {
 
   $('firstAiderWelcome').textContent =
     'Welcome, ' + firstAider.name;
+  await loadMyFixtures(firstAider.id);
 
   return;
 }
