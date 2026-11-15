@@ -108,7 +108,32 @@ $('staffList').innerHTML=state.staff.map(s=>`<p>👤 <strong>${esc(s.name)}</str
 function renderReport(){const month=$('month').value;const rows=state.staff.map(s=>({name:s.name,assigned:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.match_date.startsWith(month)).length,verified:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.attended&&m.match_date.startsWith(month)).length}));$('reportTable').innerHTML=`<table><thead><tr><th>First aider</th><th>Assigned</th><th>Verified</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.assigned}</td><td>${r.verified}</td></tr>`).join('')}</tbody></table>`;return rows}
 async function run(operation){try{notice('');await operation();await refresh()}catch(e){notice('Error: '+(e.message||String(e)))}}
 async function updateFixture(id,values){const {error}=await db.from('fixtures').update(values).eq('id',id);if(error)throw error}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginError').textContent='Signing in…';const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});$('password').value='';if(error){showLogin(error.message);return}try{if(!await checkAdmin(data.user)){await db.auth.signOut();showLogin('This account is not authorised as an administrator.');return}currentUser=data.user;showApp();await refresh()}catch(err){showLogin(err.message)}});
+
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('loginError').textContent = 'Signing in...';
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email: $('email').value.trim(),
+    password: $('password').value
+  });
+
+  $('password').value = '';
+
+  if (error) {
+    showLogin(error.message);
+    return;
+  }
+
+  try {
+    currentUser = data.user;
+    await initialise();
+  } catch (err) {
+    await db.auth.signOut();
+    currentUser = null;
+    showLogin(err.message);
+  }
+});
 $('logout').addEventListener('click',async()=>{await db.auth.signOut();currentUser=null;state={matches:[],staff:[]};showLogin()});
 
 $('firstAiderLogout').addEventListener('click', async () => {
