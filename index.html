@@ -62,7 +62,9 @@ async function checkFirstAider(user) {
 async function loadMyFixtures(firstAiderId) {
   const { data, error } = await db
     .from('fixtures')
-    .select('home_team, away_team, match_date, match_time, status, attended')
+    
+.select('id, home_team, away_team, match_date, match_time, status, attended, confirmation_status')
+
     .eq('assigned_staff_id', firstAiderId)
     .order('match_date', { ascending: true })
     .order('match_time', { ascending: true });
