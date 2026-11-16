@@ -88,8 +88,24 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state={matches:[],staff:[]};let currentUser=null;
 function notice(message){$('message').textContent=message;$('message').classList.toggle('hidden',!message)}
-function showLogin(message=''){$('login').classList.remove('hidden');$('app').classList.add('hidden');$('loginError').textContent=message;notice('')}
-function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden');$('signedIn').textContent='Signed in: '+(currentUser?.email||'Administrator');$('loginError').textContent=''}
+
+function showLogin(message = '') {
+  $('login').classList.remove('hidden');
+  $('registration').classList.remove('hidden');
+  $('app').classList.add('hidden');
+  $('loginError').textContent = message;
+  notice('');
+}
+
+function showApp() {
+  $('login').classList.add('hidden');
+  $('registration').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('signedIn').textContent = 'Signed in: ' +
+    (currentUser?.email || 'Administrator');
+  $('loginError').textContent = '';
+}
+
 async function checkAdmin(user){const {data,error}=await db.from('admin_users').select('user_id').eq('user_id',user.id).maybeSingle();if(error)throw error;return !!data}
 
 async function checkFirstAider(user) {
@@ -279,6 +295,7 @@ async function initialise() {
   
 if (firstAider) {
   $('login').classList.add('hidden');
+  $('registration').classList.add('hidden');
   $('app').classList.add('hidden');
   $('firstAiderApp').classList.remove('hidden');
 
