@@ -20,5 +20,8 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install Supabase library
+        run: npm install --no-save @supabase/supabase-js
+
       - name: Test Gibraltar FA fixture source
         run: node scripts/import-fixtures.js
