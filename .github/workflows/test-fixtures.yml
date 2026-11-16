@@ -23,5 +23,10 @@ jobs:
       - name: Install Supabase library
         run: npm install --no-save @supabase/supabase-js
 
+   
       - name: Test Gibraltar FA fixture source
         run: node scripts/import-fixtures.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
