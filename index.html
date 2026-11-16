@@ -273,7 +273,7 @@ await loadAvailableFixtures();
   showLogin("This account is not authorised.");
 }
 
-async function refresh(){const [s,f]=await Promise.all([db.from('first_aiders').select('id,name').order('name'),db.from('fixtures')
+async function refresh(){const [s,f]=await Promise.all([db.from('first_aiders').select('id,name,approved').order('name'),db.from('fixtures')
 .select('id,home_team,away_team,match_date,match_time,assigned_staff_id,status,attended,is_released')
 .order('match_date').order('match_time')]);if(s.error)throw s.error;if(f.error)throw f.error;state.staff=s.data;
 state.matches=f.data;render();renderReleaseFixtures();notice('')
