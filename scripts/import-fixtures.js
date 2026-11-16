@@ -53,6 +53,7 @@ async function testFixtureSource() {
 
   console.log("Fixtures extracted:", fixtures.length);
   console.log(JSON.stringify(fixtures, null, 2));
+  
   console.log("READ ONLY – No database changes made.");
 }
 
