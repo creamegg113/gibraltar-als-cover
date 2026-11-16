@@ -1,9 +1,9 @@
 
 const SOURCE_URL =
-  "https://www.gibraltarfa.com/competitions/gibraltar-football-league-26-27-3395567/matches";
+  "https://www.gibraltarfa.com/competitions/gibraltar-football-league-26-27-3395567";
 
 async function testFixtureSource() {
-  console.log("First Response – Fixture extraction test");
+  console.log("First Response – Upcoming fixture extraction");
   console.log("Mode: READ ONLY");
 
   const response = await fetch(SOURCE_URL);
@@ -13,24 +13,48 @@ async function testFixtureSource() {
   }
 
   const html = await response.text();
-  const matches = [
-    ...html.matchAll(/<div\s+class="match"\s*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/g)
-  ];
 
-  console.log("Match sections detected:", matches.length);
+  const carousel = html.match(
+    /<ul\b[^>]*class=["'][^"']*\bslides\b[^"']*upcoming-boxes[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i
+  );
 
-  for (const [index, match] of matches.slice(0, 5).entries()) {
-    const text = match[1]
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    console.log(`Match ${index + 1}:`, text);
+  if (!carousel) {
+    throw new Error("Upcoming fixtures carousel not found");
   }
 
-  console.log("Test complete. No database changes made.");
+  const items = [...carousel[1].matchAll(
+    /<li\b[^>]*class=["'][^"']*\bbox\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi
+  )];
+
+  function clean(value) {
+    return (value || "")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  const fixtures = items.map((item) => {
+    const content = item[1];
+
+    const date = content.match(/<h4[^>]*>([\s\S]*?)<\/h4>/i);
+    const competition = content.match(/<h6[^>]*>([\s\S]*?)<\/h6>/i);
+    const teams = [...content.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>/gi)];
+
+    return {
+      dateTime: clean(date?.[1]),
+      competition: clean(competition?.[1]),
+      homeTeam: clean(teams[0]?.[1]),
+      awayTeam: clean(teams[1]?.[1])
+    };
+  });
+
+  console.log("Fixtures extracted:", fixtures.length);
+  console.log(JSON.stringify(fixtures, null, 2));
+  console.log("READ ONLY – No database changes made.");
 }
 
-testFixtureSource().catch(error => {
+testFixtureSource().catch((error) => {
   console.error("Fixture extraction failed:", error.message);
+  process.exitCode = 1;
 });
