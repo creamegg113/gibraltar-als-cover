@@ -323,7 +323,7 @@ function renderReleaseFixtures() {
 $('metrics').innerHTML=`<div class="card"><div class="metric">${active.length}</div><div class="muted">Scheduled matches</div></div><div class="card"><div class="metric green">${covered}</div><div class="muted">Covered</div></div><div class="card"><div class="metric red">${open}</div><div class="muted">Need ALS cover</div></div>`;
 $('alert').textContent=open?`⚠ ${open} match${open===1?'':'es'} currently need ALS cover.`:'✓ All scheduled matches have ALS cover.';
 const filter=$('filter').value;const list=state.matches.filter(m=>filter==='all'||filter==='cancelled'&&m.status==='cancelled'||filter==='covered'&&m.status==='scheduled'&&m.assigned_staff_id||filter==='uncovered'&&m.status==='scheduled'&&!m.assigned_staff_id);
-$('fixtureList').innerHTML=list.map(m=>{const cancelled=m.status==='cancelled',name=staffName(m.assigned_staff_id),status=cancelled?'Cancelled':name?'Covered':'Needs ALS';const options=state.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');return `<article class="card fixture"><div class="fixture-top"><span class="muted">${esc(m.match_date)} · ${esc(m.match_time?.slice(0,5))}</span><span class="pill ${cancelled?'cancelled':name?'ok':''}">${status}</span></div><h3>${esc(m.home_team)} vs ${esc(m.away_team)}</h3><p>${name?'Assigned: <strong>'+esc(name)+'</strong>':'No first aider assigned'}</p><div class="actions">${!cancelled&&!name?`<select aria-label="Select first aider" id="assign-${m.id}"><option value="">Choose first aider</option>${options}</select><button data-action="assign" data-id="${m.id}">Assign</button>`:''}${name?`<button class="secondary" data-action="release" data-id="${m.id}">Release assignment</button>`:''}${!cancelled&&name?`<label><input type="checkbox" data-action="attendance" data-id="${m.id}" ${m.attended?'checked':''}> Attendance verified</label>`:''}<button class="secondary" data-action="cancel" data-id="${m.id}">${cancelled?'Restore fixture':'Mark cancelled'}</button></div></article>`}).join('')||'<p>No matches in this category.</p>';
+$('fixtureList').innerHTML=list.map(m=>{const cancelled=m.status==='cancelled',name=staffName(m.assigned_staff_id),status=cancelled?'Cancelled':name?'Covered':'Needs ALS';const options=state.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');return `<article class="card fixture"><div class="fixture-top"><span class="muted">${esc(m.match_date)} · ${esc(m.match_time?.slice(0,5))}</span><span class="pill ${cancelled?'cancelled':name?'ok':''}">${status}</span></div><h3>${esc(m.home_team)} vs ${esc(m.away_team)}</h3><p>${name?'Assigned: <strong>'+esc(name)+'</strong>':'No first aider assigned'}</p><div class="actions">${!cancelled&&!name?`<button class="secondary" data-action="cover-self" data-id="${m.id}">Cover myself</button>`:''}${!cancelled&&!name?`<select aria-label="Select first aider" id="assign-${m.id}"><option value="">Choose first aider</option>${options}</select><button data-action="assign" data-id="${m.id}">Assign</button>`:''}${name?`<button class="secondary" data-action="release" data-id="${m.id}">Release assignment</button>`:''}${!cancelled&&name?`<label><input type="checkbox" data-action="attendance" data-id="${m.id}" ${m.attended?'checked':''}> Attendance verified</label>`:''}<button class="secondary" data-action="cancel" data-id="${m.id}">${cancelled?'Restore fixture':'Mark cancelled'}</button></div></article>`}).join('')||'<p>No matches in this category.</p>';
 $('staffList').innerHTML=state.staff.map(s=>`<p>👤 <strong>${esc(s.name)}</strong> <span class="muted">— ${active.filter(m=>m.assigned_staff_id===s.id).length} assigned</span></p>`).join('')||'<p>No first aiders registered yet.</p>';renderReport()}
 function renderReport(){const month=$('month').value;const rows=state.staff.map(s=>({name:s.name,assigned:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.match_date.startsWith(month)).length,verified:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.attended&&m.match_date.startsWith(month)).length}));$('reportTable').innerHTML=`<table><thead><tr><th>First aider</th><th>Assigned</th><th>Verified</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.assigned}</td><td>${r.verified}</td></tr>`).join('')}</tbody></table>`;return rows}
 async function run(operation){try{notice('');await operation();await refresh()}catch(e){notice('Error: '+(e.message||String(e)))}}
@@ -372,7 +372,27 @@ $('firstAiderLogout').addEventListener('click', async () => {
   document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['fixtures','staff','reports'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))}));
 $('filter').addEventListener('change',render);$('month').addEventListener('change',renderReport);
 $('fixtureList').addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const m=state.matches.find(x=>x.id===Number(b.dataset.id));if(!m)return;run(async()=>{let values;if(b.dataset.action==='assign'){const selected=$('assign-'+m.id)?.value;if(!selected||m.assigned_staff_id||m.status!=='scheduled')return;values={assigned_staff_id:Number(selected),attended:false}}else if(b.dataset.action==='release'){values={assigned_staff_id:null,attended:false}}else if(b.dataset.action==='cancel'){values={status:m.status==='cancelled'?'scheduled':'cancelled',attended:false}}else return;await updateFixture(m.id,values)})});
-$('fixtureList').addEventListener('change',e=>{if(e.target.dataset.action!=='attendance')return;const m=state.matches.find(x=>x.id===Number(e.target.dataset.id));if(m?.assigned_staff_id&&m.status==='scheduled')run(()=>updateFixture(m.id,{attended:e.target.checked}))});
+$('fixtureList').addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action="cover-self"]');
+  if (!button) return;
+
+  button.disabled = true;
+
+  try {
+    const { error } = await db.rpc('admin_cover_myself', {
+      p_fixture_id: Number(button.dataset.id)
+    });
+
+    if (error) throw error;
+
+    await refresh();
+  } catch (error) {
+    alert('Unable to cover match: ' + error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+  $('fixtureList').addEventListener('change',e=>{if(e.target.dataset.action!=='attendance')return;const m=state.matches.find(x=>x.id===Number(e.target.dataset.id));if(m?.assigned_staff_id&&m.status==='scheduled')run(()=>updateFixture(m.id,{attended:e.target.checked}))});
 $('addStaff').addEventListener('submit',e=>{e.preventDefault();const name=$('staffName').value.trim();if(!name||state.staff.some(s=>s.name.toLowerCase()===name.toLowerCase())){notice('Enter a unique first aider name.');return}run(async()=>{const {error}=await db.from('first_aiders').insert({name});if(error)throw error;$('staffName').value=''})});
 $('addFixture').addEventListener('submit',e=>{e.preventDefault();run(async()=>{const {error}=await db.from('fixtures').insert({home_team:$('home').value.trim(),away_team:$('away').value.trim(),match_date:$('date').value,match_time:$('time').value,status:'scheduled',attended:false});if(error)throw error;$('addFixture').reset()})});
 
