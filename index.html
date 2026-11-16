@@ -29,6 +29,13 @@
 
   <p id="firstAiderWelcome"></p>
 
+<h3>Available ALS Matches</h3>
+<p class="muted">
+  Select the matches you would like to cover.
+</p>
+<div id="availableFixtures"></div>
+<hr>
+
   <h3>My assigned fixtures</h3>
   <div id="myFixtures"></div>
 </section>
@@ -69,6 +76,78 @@ async function respondToFixture(fixtureId, response) {
     console.error('Fixture response error:', error);
     alert('Unable to save your response: ' + error.message);
     throw error;
+  }
+}
+
+async function loadAvailableFixtures() {
+  const container = $('availableFixtures');
+  container.textContent = 'Loading available matches...';
+
+  const { data, error } = await db
+    .from('fixtures')
+    .select('id, home_team, away_team, match_date, match_time')
+    .eq('is_released', true)
+    .is('assigned_staff_id', null)
+    .eq('status', 'scheduled')
+    .order('match_date', { ascending: true })
+    .order('match_time', { ascending: true });
+
+  if (error) {
+    container.textContent = 'Unable to load available matches.';
+    console.error(error);
+    return;
+  }
+
+  container.replaceChildren();
+
+  if (!data.length) {
+    container.textContent = 'No matches currently available.';
+    return;
+  }
+
+  for (const match of data) {
+    const card = document.createElement('div');
+    card.className = 'panel';
+
+    const heading = document.createElement('h4');
+    heading.textContent =
+      `${match.home_team} vs ${match.away_team}`;
+
+    const details = document.createElement('p');
+    details.textContent =
+      `${match.match_date} at ${match.match_time}`;
+
+    const button = document.createElement('button');
+    button.textContent = 'Accept match';
+
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+
+      const { error: claimError } = await db.rpc(
+        'claim_fixture',
+        { p_fixture_id: match.id }
+      );
+
+      if (claimError) {
+        alert(claimError.message);
+        button.disabled = false;
+        await loadAvailableFixtures();
+        return;
+      }
+
+      alert('Match successfully accepted!');
+      await loadAvailableFixtures();
+
+      const user = (await db.auth.getUser()).data.user;
+      const staff = await checkFirstAider(user);
+
+      if (staff) {
+        await loadMyFixtures(staff.id);
+      }
+    });
+
+    card.append(heading, details, button);
+    container.appendChild(card);
   }
 }
 
@@ -167,6 +246,9 @@ if (firstAider) {
 
   $('firstAiderWelcome').textContent =
     'Welcome, ' + firstAider.name;
+  
+await loadAvailableFixtures();
+
   await loadMyFixtures(firstAider.id);
 
   return;
