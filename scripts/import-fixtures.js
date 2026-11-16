@@ -63,6 +63,9 @@ function clean(value) {
   console.log(JSON.stringify(fixtures, null, 2));
   if (!db) {
   console.log("Supabase connection unavailable — comparison skipped.");
+} else {
+  console.log("Supabase client configured — READ ONLY.");
+}
 }
   console.log("READ ONLY – No database changes made.");
 }
