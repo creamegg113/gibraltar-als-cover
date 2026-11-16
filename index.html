@@ -15,7 +15,18 @@
 <div class="toolbar spaced"><span id="signedIn" class="muted"></span><button id="logout" class="secondary">Sign out</button></div>
 <div class="cards" id="metrics"></div><div id="alert" class="notice" role="status"></div>
 <nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button></nav>
-<section id="fixtures"><div class="toolbar spaced"><h2>Match assignments</h2><select id="filter"><option value="all">All matches</option><option value="uncovered">Uncovered</option><option value="covered">Covered</option><option value="cancelled">Cancelled</option></select></div><div id="fixtureList" class="fixtures"></div><div class="panel spaced"><h3>Add fixture</h3><form id="addFixture" class="row"><input id="home" placeholder="Home team" required maxlength="100"><input id="away" placeholder="Away team" required maxlength="100"><input id="date" type="date" required><input id="time" type="time" required><button>Add fixture</button></form></div></section>
+
+<div class="panel">
+  <h3>Release ALS Matches</h3>
+  <p class="muted">
+    Make available fixtures visible to registered first aiders.
+  </p>
+  <button id="releaseMatchesBtn" type="button">
+    Release available matches
+  </button>
+</div>
+
+  <section id="fixtures"><div class="toolbar spaced"><h2>Match assignments</h2><select id="filter"><option value="all">All matches</option><option value="uncovered">Uncovered</option><option value="covered">Covered</option><option value="cancelled">Cancelled</option></select></div><div id="fixtureList" class="fixtures"></div><div class="panel spaced"><h3>Add fixture</h3><form id="addFixture" class="row"><input id="home" placeholder="Home team" required maxlength="100"><input id="away" placeholder="Away team" required maxlength="100"><input id="date" type="date" required><input id="time" type="time" required><button>Add fixture</button></form></div></section>
 <section id="staff" class="hidden"><div class="panel"><h2>Registered first aiders</h2><div id="staffList"></div><form id="addStaff" class="row spaced"><input id="staffName" placeholder="First aider's name" required maxlength="80"><button>Add first aider</button></form><p class="muted small">Adding a name does not create a login account.</p></div></section>
 <section id="reports" class="hidden"><div class="panel"><h2>Monthly attendance summary</h2><label>Month <input type="month" id="month"></label><div id="reportTable" class="spaced"></div><button id="export">Download CSV report</button><p class="muted small">Only verified attendance counts towards completed matches. This is a check, not payroll.</p></div></section>
 
@@ -317,7 +328,43 @@ $('fixtureList').addEventListener('click',e=>{const b=e.target.closest('button[d
 $('fixtureList').addEventListener('change',e=>{if(e.target.dataset.action!=='attendance')return;const m=state.matches.find(x=>x.id===Number(e.target.dataset.id));if(m?.assigned_staff_id&&m.status==='scheduled')run(()=>updateFixture(m.id,{attended:e.target.checked}))});
 $('addStaff').addEventListener('submit',e=>{e.preventDefault();const name=$('staffName').value.trim();if(!name||state.staff.some(s=>s.name.toLowerCase()===name.toLowerCase())){notice('Enter a unique first aider name.');return}run(async()=>{const {error}=await db.from('first_aiders').insert({name});if(error)throw error;$('staffName').value=''})});
 $('addFixture').addEventListener('submit',e=>{e.preventDefault();run(async()=>{const {error}=await db.from('fixtures').insert({home_team:$('home').value.trim(),away_team:$('away').value.trim(),match_date:$('date').value,match_time:$('time').value,status:'scheduled',attended:false});if(error)throw error;$('addFixture').reset()})});
-$('export').addEventListener('click',()=>{const rows=renderReport();const csv=[['First aider','Assigned matches','Verified attendance'],...rows.map(r=>[r.name,r.assigned,r.verified])].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`als-cover-${$('month').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
+
+$('releaseMatchesBtn').addEventListener('click', async () => {
+  const confirmed = confirm(
+    'Release all currently unreleased, unassigned scheduled matches to first aiders?'
+  );
+
+  if (!confirmed) return;
+
+  const button = $('releaseMatchesBtn');
+  button.disabled = true;
+
+  try {
+    const { data, error } = await db
+      .from('fixtures')
+      .update({ is_released: true })
+      .eq('status', 'scheduled')
+      .is('assigned_staff_id', null)
+      .eq('is_released', false)
+      .select('id');
+
+    if (error) throw error;
+
+    alert(
+      data.length
+        ? `${data.length} matches released successfully.`
+        : 'No new matches to release.'
+    );
+
+    await refresh();
+  } catch (error) {
+    alert('Unable to release matches: ' + error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+  $('export').addEventListener('click',()=>{const rows=renderReport();const csv=[['First aider','Assigned matches','Verified attendance'],...rows.map(r=>[r.name,r.assigned,r.verified])].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`als-cover-${$('month').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 $('month').value=new Date().toISOString().slice(0,7);
 initialise().catch(e=>showLogin('Unable to initialise: '+e.message));
 </script></body></html>
