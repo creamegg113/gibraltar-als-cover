@@ -11,7 +11,31 @@
 <header><h1>⚕ Gibraltar ALS Cover</h1><p>Football League · Administrator dashboard</p></header>
 <main>
 <section id="login" class="panel"><h2>Gibraltar ALS Cover — Sign in</h2><p class="muted">Sign in with your authorised Supabase account.</p><form id="loginForm" class="row"><input id="email" type="email" placeholder="Email address" required autocomplete="username"><input id="password" type="password" placeholder="Password" required autocomplete="current-password"><button>Sign in</button></form><p id="loginError" class="red" role="alert"></p></section>
-<div id="app" class="hidden">
+
+<section id="registration" class="panel">
+  <h2>Register as a First Aider</h2>
+  <p class="muted">
+    Create an account to request access to Gibraltar ALS Cover.
+    Your registration must be approved by an administrator.
+  </p>
+
+  <form id="registerForm" class="row">
+    <input id="registerName" type="text"
+           placeholder="Full name" required maxlength="80">
+
+    <input id="registerEmail" type="email"
+           placeholder="Email address" required>
+
+    <input id="registerPassword" type="password"
+           placeholder="Create password" required minlength="8">
+
+    <button type="submit">Register</button>
+  </form>
+
+  <p id="registerMessage" class="muted"></p>
+</section>
+
+  <div id="app" class="hidden">
 <div class="toolbar spaced"><span id="signedIn" class="muted"></span><button id="logout" class="secondary">Sign out</button></div>
 <div class="cards" id="metrics"></div><div id="alert" class="notice" role="status"></div>
 <nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button></nav>
@@ -373,7 +397,45 @@ $('loginForm').addEventListener('submit', async e => {
     showLogin(err.message);
   }
 });
-$('logout').addEventListener('click',async()=>{await db.auth.signOut();currentUser=null;state={matches:[],staff:[]};showLogin()});
+
+$('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const name = $('registerName').value.trim();
+  const email = $('registerEmail').value.trim();
+  const password = $('registerPassword').value;
+  const message = $('registerMessage');
+
+  message.textContent = 'Creating your account...';
+
+  if (!name || !email || password.length < 8) {
+    message.textContent = 'Please complete all fields. Password must be at least 8 characters.';
+    return;
+  }
+
+  const { data, error } = await db.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: name }
+    }
+  });
+
+  if (error) {
+    message.textContent = error.message;
+    return;
+  }
+
+  if (!data.user) {
+    message.textContent = 'Unable to create account.';
+    return;
+  }
+
+  message.textContent =
+    'Account created. Please verify your email if requested. Your registration will need administrator approval.';
+});
+
+  $('logout').addEventListener('click',async()=>{await db.auth.signOut();currentUser=null;state={matches:[],staff:[]};showLogin()});
 
 $('firstAiderLogout').addEventListener('click', async () => {
   const { error } = await db.auth.signOut();
