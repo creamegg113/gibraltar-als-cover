@@ -21,6 +21,9 @@
   <p class="muted">
     Make available fixtures visible to registered first aiders.
   </p>
+  
+<div id="releaseFixtureList"></div>
+
   <button id="releaseMatchesBtn" type="button">
     Release available matches
   </button>
@@ -270,9 +273,53 @@ await loadAvailableFixtures();
   showLogin("This account is not authorised.");
 }
 
-async function refresh(){const [s,f]=await Promise.all([db.from('first_aiders').select('id,name').order('name'),db.from('fixtures').select('id,home_team,away_team,match_date,match_time,assigned_staff_id,status,attended').order('match_date').order('match_time')]);if(s.error)throw s.error;if(f.error)throw f.error;state.staff=s.data;state.matches=f.data;render();notice('')}
+async function refresh(){const [s,f]=await Promise.all([db.from('first_aiders').select('id,name').order('name'),db.from('fixtures')
+.select('id,home_team,away_team,match_date,match_time,assigned_staff_id,status,attended,is_released')
+.order('match_date').order('match_time')]);if(s.error)throw s.error;if(f.error)throw f.error;state.staff=s.data;
+state.matches=f.data;render();renderReleaseFixtures();notice('')
+}
 function staffName(id){return state.staff.find(s=>s.id===id)?.name||null}
-function render(){const active=state.matches.filter(m=>m.status==='scheduled');const covered=active.filter(m=>m.assigned_staff_id).length;const open=active.length-covered;
+
+function renderReleaseFixtures() {
+  const container = $('releaseFixtureList');
+  const button = $('releaseMatchesBtn');
+
+  const eligible = state.matches.filter(match =>
+    match.status === 'scheduled' &&
+    match.assigned_staff_id == null &&
+    match.is_released === false
+  );
+
+  container.replaceChildren();
+
+  if (eligible.length === 0) {
+    container.textContent = 'No matches awaiting release.';
+    button.disabled = true;
+    return;
+  }
+
+  button.disabled = false;
+
+  eligible.forEach(match => {
+    const label = document.createElement('label');
+    label.style.display = 'block';
+    label.style.marginBottom = '12px';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'releaseFixtureCheckbox';
+    checkbox.value = match.id;
+
+    const description = document.createElement('span');
+    description.textContent =
+      ` ${match.home_team} vs ${match.away_team} — ${match.match_date} at ${match.match_time}`;
+
+    label.append(checkbox, description);
+    container.appendChild(label);
+  });
+}
+
+  function render(){const active=state.matches.filter(m=>m.status==='scheduled');const covered=active.filter(m=>m.assigned_staff_id).length;const open=active.length-covered;
 $('metrics').innerHTML=`<div class="card"><div class="metric">${active.length}</div><div class="muted">Scheduled matches</div></div><div class="card"><div class="metric green">${covered}</div><div class="muted">Covered</div></div><div class="card"><div class="metric red">${open}</div><div class="muted">Need ALS cover</div></div>`;
 $('alert').textContent=open?`⚠ ${open} match${open===1?'':'es'} currently need ALS cover.`:'✓ All scheduled matches have ALS cover.';
 const filter=$('filter').value;const list=state.matches.filter(m=>filter==='all'||filter==='cancelled'&&m.status==='cancelled'||filter==='covered'&&m.status==='scheduled'&&m.assigned_staff_id||filter==='uncovered'&&m.status==='scheduled'&&!m.assigned_staff_id);
@@ -329,9 +376,19 @@ $('fixtureList').addEventListener('change',e=>{if(e.target.dataset.action!=='att
 $('addStaff').addEventListener('submit',e=>{e.preventDefault();const name=$('staffName').value.trim();if(!name||state.staff.some(s=>s.name.toLowerCase()===name.toLowerCase())){notice('Enter a unique first aider name.');return}run(async()=>{const {error}=await db.from('first_aiders').insert({name});if(error)throw error;$('staffName').value=''})});
 $('addFixture').addEventListener('submit',e=>{e.preventDefault();run(async()=>{const {error}=await db.from('fixtures').insert({home_team:$('home').value.trim(),away_team:$('away').value.trim(),match_date:$('date').value,match_time:$('time').value,status:'scheduled',attended:false});if(error)throw error;$('addFixture').reset()})});
 
+
 $('releaseMatchesBtn').addEventListener('click', async () => {
+  const selectedIds = Array.from(
+    document.querySelectorAll('.releaseFixtureCheckbox:checked')
+  ).map(checkbox => Number(checkbox.value));
+
+  if (selectedIds.length === 0) {
+    alert('Please select at least one match to release.');
+    return;
+  }
+
   const confirmed = confirm(
-    'Release all currently unreleased, unassigned scheduled matches to first aiders?'
+    `Release ${selectedIds.length} selected match(es) to first aiders?`
   );
 
   if (!confirmed) return;
@@ -343,6 +400,7 @@ $('releaseMatchesBtn').addEventListener('click', async () => {
     const { data, error } = await db
       .from('fixtures')
       .update({ is_released: true })
+      .in('id', selectedIds)
       .eq('status', 'scheduled')
       .is('assigned_staff_id', null)
       .eq('is_released', false)
@@ -350,19 +408,16 @@ $('releaseMatchesBtn').addEventListener('click', async () => {
 
     if (error) throw error;
 
-    alert(
-      data.length
-        ? `${data.length} matches released successfully.`
-        : 'No new matches to release.'
-    );
-
+    alert(`${data.length} match(es) released successfully.`);
     await refresh();
+
   } catch (error) {
     alert('Unable to release matches: ' + error.message);
   } finally {
     button.disabled = false;
   }
 });
+
 
   $('export').addEventListener('click',()=>{const rows=renderReport();const csv=[['First aider','Assigned matches','Verified attendance'],...rows.map(r=>[r.name,r.assigned,r.verified])].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`als-cover-${$('month').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 $('month').value=new Date().toISOString().slice(0,7);
