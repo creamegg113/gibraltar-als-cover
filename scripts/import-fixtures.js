@@ -61,7 +61,9 @@ function clean(value) {
 
   console.log("Fixtures extracted:", fixtures.length);
   console.log(JSON.stringify(fixtures, null, 2));
-  
+  if (!db) {
+  console.log("Supabase connection unavailable — comparison skipped.");
+}
   console.log("READ ONLY – No database changes made.");
 }
 
