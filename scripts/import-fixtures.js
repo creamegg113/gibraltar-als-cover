@@ -28,13 +28,16 @@ async function testFixtureSource() {
     /<li\b[^>]*class=["'][^"']*\bbox\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi
   )];
 
-  function clean(value) {
-    return (value || "")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
+  
+function clean(value) {
+  return (value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&#0*39;|&#x0*27;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 
   const fixtures = items.map((item) => {
     const content = item[1];
