@@ -1,4 +1,6 @@
 
+const { createClient } = require('@supabase/supabase-js');
+
 const SOURCE_URL =
   "https://www.gibraltarfa.com/competitions/gibraltar-football-league-26-27-3395567";
 
