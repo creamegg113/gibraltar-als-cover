@@ -67,7 +67,7 @@
 <div class="cards" id="metrics"></div><div id="alert" class="notice" role="status"></div>
 <nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button></nav>
 
-<div class="panel">
+<div class="panel" id="releaseMatchesPanel">
   <h3>Release ALS Matches</h3>
   <p class="muted">
     Make available fixtures visible to registered first aiders.
@@ -643,7 +643,12 @@ $('firstAiderLogout').addEventListener('click', async () => {
   $('firstAiderApp').classList.add('hidden');
   showLogin();
 });
-
+document.querySelectorAll('nav button').forEach(button => {
+  button.addEventListener('click', () => {
+    document.getElementById('releaseMatchesPanel')
+      .classList.toggle('hidden', button.dataset.tab !== 'fixtures');
+  });
+});
   document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['fixtures','staff','reports'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))}));
 $('filter').addEventListener('change',render);$('month').addEventListener('change',renderReport);
 $('fixtureList').addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const m=state.matches.find(x=>x.id===Number(b.dataset.id));if(!m)return;run(async()=>{let values;if(b.dataset.action==='assign'){const selected=$('assign-'+m.id)?.value;if(!selected||m.assigned_staff_id||m.status!=='scheduled')return;values={assigned_staff_id:Number(selected),attended:false}}else if(b.dataset.action==='release'){values={assigned_staff_id:null,attended:false}}else if(b.dataset.action==='cancel'){values={status:m.status==='cancelled'?'scheduled':'cancelled',attended:false}}else return;await updateFixture(m.id,values)})});
