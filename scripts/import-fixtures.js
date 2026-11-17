@@ -87,9 +87,17 @@ console.log(JSON.stringify(existingFixtures, null, 2));
     .filter(Boolean)
 );
 
-const newFixtures = fixtures.filter(
-  fixture => !existingIds.has(fixture.externalFixtureId)
-);
+const newFixtures = fixtures.filter(fixture => {
+  const alreadyExists = existingFixtures.some(existing => {
+
+    const sameExternalId =
+      existing.external_fixture_id === fixture.externalFixtureId;
+
+   return sameExternalId && existing.external_fixture_id != null;
+  });
+
+  return !alreadyExists;
+});
 
 console.log("New fixtures identified:", newFixtures.length);
 console.log(JSON.stringify(newFixtures, null, 2));
