@@ -421,6 +421,33 @@ function renderReleaseFixtures() {
 
     label.append(checkbox, description);
     container.appendChild(label);
+    
+const adminButton = document.createElement('button');
+adminButton.type = 'button';
+adminButton.textContent = "I'll cover this match";
+adminButton.className = 'secondary';
+adminButton.style.marginBottom = '12px';
+
+adminButton.addEventListener('click', async () => {
+  if (!confirm('Assign this match to yourself?')) return;
+
+  adminButton.disabled = true;
+
+  try {
+    const { error } = await db.rpc('admin_cover_myself', {
+      p_fixture_id: Number(match.id)
+    });
+
+    if (error) throw error;
+    await refresh();
+  } catch (error) {
+    alert('Unable to assign match: ' + error.message);
+    adminButton.disabled = false;
+  }
+});
+
+container.appendChild(adminButton);
+
   });
 }
 
