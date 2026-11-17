@@ -132,6 +132,18 @@ const newFixtures = fixtures.filter(fixture => {
 
 console.log("New fixtures identified:", newFixtures.length);
 console.log(JSON.stringify(newFixtures, null, 2));
+    const fixturesToImport = newFixtures.map(fixture => ({
+  home_team: fixture.homeTeam,
+  away_team: fixture.awayTeam,
+  match_date: fixture.matchDate,
+  match_time: fixture.matchTime,
+  source: 'gibraltar_fa',
+  external_fixture_id: fixture.externalFixtureId,
+  status: 'scheduled',
+  is_released: false
+}));
+
+console.log("Fixtures prepared for import:", fixturesToImport.length);
 }
 
   console.log("READ ONLY – No database changes made.");
