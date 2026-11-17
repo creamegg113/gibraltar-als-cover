@@ -81,6 +81,18 @@ if (error) {
 
 console.log("Existing database fixtures:", existingFixtures.length);
 console.log(JSON.stringify(existingFixtures, null, 2));
+    const existingIds = new Set(
+  existingFixtures
+    .map(fixture => fixture.external_fixture_id)
+    .filter(Boolean)
+);
+
+const newFixtures = fixtures.filter(
+  fixture => !existingIds.has(fixture.externalFixtureId)
+);
+
+console.log("New fixtures identified:", newFixtures.length);
+console.log(JSON.stringify(newFixtures, null, 2));
 }
 
   console.log("READ ONLY – No database changes made.");
