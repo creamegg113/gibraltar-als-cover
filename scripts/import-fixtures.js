@@ -42,17 +42,48 @@ function clean(value) {
     .replace(/\s+/g, " ")
     .trim();
 }
+function parseFixtureDateTime(value) {
+  const match = value.match(
+    /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2})(?:st|nd|rd|th)\s+([A-Za-z]+)\s*\|\s*(\d{1,2}):(\d{2})/i
+  );
 
+  if (!match) {
+    throw new Error(`Unable to parse fixture date: ${value}`);
+  }
+
+  const months = [
+    "january", "february", "march", "april",
+    "may", "june", "july", "august",
+    "september", "october", "november", "december"
+  ];
+
+  const month = months.indexOf(match[2].toLowerCase());
+  if (month === -1) {
+    throw new Error(`Unknown fixture month: ${match[2]}`);
+  }
+
+  const year = 2026;
+  const day = match[1].padStart(2, "0");
+  const monthNumber = String(month + 1).padStart(2, "0");
+  const time = `${match[3].padStart(2, "0")}:${match[4]}:00`;
+
+  return {
+    matchDate: `${year}-${monthNumber}-${day}`,
+    matchTime: time
+  };
+}
 
   const fixtures = items.map((item) => {
     const content = item[1];
-
+const parsedDate = parseFixtureDateTime(clean(content.match(/<h4[^>]*>([\s\S]*?)<\/h4>/i)?.[1]));
     const date = content.match(/<h4[^>]*>([\s\S]*?)<\/h4>/i);
     const competition = content.match(/<h6[^>]*>([\s\S]*?)<\/h6>/i);
     const teams = [...content.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>/gi)];
 
     return {
       dateTime: clean(date?.[1]),
+matchDate: parsedDate.matchDate,
+matchTime: parsedDate.matchTime,
       competition: clean(competition?.[1]),
       homeTeam: clean(teams[0]?.[1]),
       awayTeam: clean(teams[1]?.[1]),
