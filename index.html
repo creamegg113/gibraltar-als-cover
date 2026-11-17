@@ -81,6 +81,8 @@
 
   <h3>My assigned fixtures</h3>
   <div id="myFixtures"></div>
+  <h3>Past Events</h3>
+<div id="pastFixtures"></div>
 </section>
 <p id="message" class="notice hidden" role="alert"></p>
 </main>
@@ -148,6 +150,7 @@ async function loadAvailableFixtures() {
     .eq('is_released', true)
     .is('assigned_staff_id', null)
     .eq('status', 'scheduled')
+    .gte('match_date', new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Gibraltar' }))
     .order('match_date', { ascending: true })
     .order('match_time', { ascending: true });
 
@@ -217,6 +220,7 @@ async function loadMyFixtures(firstAiderId) {
 .select('id, home_team, away_team, match_date, match_time, status, attended, confirmation_status')
 
     .eq('assigned_staff_id', firstAiderId)
+    .gte('match_date', new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Gibraltar' }))
     .order('match_date', { ascending: true })
     .order('match_time', { ascending: true });
 
@@ -276,7 +280,58 @@ card.append(heading, details, status, confirmation);
   });
 }
 
-  
+async function loadPastFixtures(firstAiderId) {
+  const container = $('pastFixtures');
+  container.textContent = 'Loading past events...';
+
+  const today = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Europe/Gibraltar'
+  });
+
+  const { data, error } = await db
+    .from('fixtures')
+    .select('home_team, away_team, match_date, match_time, attended, confirmation_status')
+    .eq('assigned_staff_id', firstAiderId)
+    .lt('match_date', today)
+    .order('match_date', { ascending: false })
+    .order('match_time', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    container.textContent = 'Unable to load past events.';
+    return;
+  }
+
+  container.replaceChildren();
+
+  if (!data || data.length === 0) {
+    container.textContent = 'No past events yet.';
+    return;
+  }
+
+  data.forEach(match => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginTop = '12px';
+
+    const heading = document.createElement('h3');
+    heading.textContent = `${match.home_team} vs ${match.away_team}`;
+
+    const details = document.createElement('p');
+    details.textContent =
+      `${match.match_date} at ${String(match.match_time).slice(0, 5)}`;
+
+    const response = document.createElement('p');
+    response.textContent = `Response: ${match.confirmation_status ?? 'Not recorded'}`;
+
+    const attendance = document.createElement('p');
+    attendance.textContent =
+      `Attendance: ${match.attended === true ? 'Attended' : match.attended === false ? 'Not attended' : 'Not recorded'}`;
+
+    card.append(heading, details, response, attendance);
+    container.appendChild(card);
+  });
+}  
 async function initialise() {
   const { data: { session }, error } = await db.auth.getSession();
 
@@ -310,6 +365,7 @@ if (firstAider) {
 await loadAvailableFixtures();
 
   await loadMyFixtures(firstAider.id);
+  await loadPastFixtures(firstAider.id);
 
   return;
 }
