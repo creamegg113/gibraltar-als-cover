@@ -20,6 +20,12 @@ async function testFixtureSource() {
   }
 
   const html = await response.text();
+  
+console.log("HTTP status:", response.status);
+console.log("HTML length:", html.length);
+console.log("Contains upcoming-boxes:", html.includes("upcoming-boxes"));
+console.log("Page preview:", html.slice(0, 500));
+
 
   const carousel = html.match(
     /<ul\b[^>]*class=["'][^"']*\bslides\b[^"']*upcoming-boxes[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i
@@ -145,7 +151,7 @@ console.log(JSON.stringify(newFixtures, null, 2));
 
 console.log("Fixtures prepared for import:", fixturesToImport.length);
     
-if (fixturesToImport.length > 0) {
+if (false && fixturesToImport.length > 0) {
   const { data: importedFixtures, error: importError } = await db
     .from("fixtures")
     .upsert(fixturesToImport, {
