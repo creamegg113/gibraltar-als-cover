@@ -144,9 +144,28 @@ console.log(JSON.stringify(newFixtures, null, 2));
 }));
 
 console.log("Fixtures prepared for import:", fixturesToImport.length);
+    
+if (fixturesToImport.length > 0) {
+  const { data: importedFixtures, error: importError } = await db
+    .from("fixtures")
+    .upsert(fixturesToImport, {
+      onConflict: "source,external_fixture_id",
+      ignoreDuplicates: true
+    })
+    .select("id");
+
+  if (importError) {
+    throw new Error("Fixture import failed: " + importError.message);
+  }
+
+  console.log("Fixtures imported:", importedFixtures?.length ?? 0);
+} else {
+  console.log("No new fixtures to import.");
 }
 
-  console.log("READ ONLY – No database changes made.");
+}
+
+  console.log("Fixture import process completed.");
 }
 
 testFixtureSource().catch((error) => {
