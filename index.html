@@ -61,7 +61,10 @@
   <section id="fixtures"><div class="toolbar spaced"><h2>Match assignments</h2><select id="filter"><option value="all">All matches</option><option value="uncovered">Uncovered</option><option value="covered">Covered</option><option value="cancelled">Cancelled</option></select></div><div id="fixtureList" class="fixtures"></div><div class="panel spaced"><h3>Add fixture</h3><form id="addFixture" class="row"><input id="home" placeholder="Home team" required maxlength="100"><input id="away" placeholder="Away team" required maxlength="100"><input id="date" type="date" required><input id="time" type="time" required><button>Add fixture</button></form></div></section>
 <section id="staff" class="hidden"><div class="panel"><h2>Registered first aiders</h2><div id="staffList"></div><form id="addStaff" class="row spaced"><input id="staffName" placeholder="First aider's name" required maxlength="80"><button>Add first aider</button></form><p class="muted small">Adding a name does not create a login account.</p></div></section>
 <section id="reports" class="hidden"><div class="panel"><h2>Monthly attendance summary</h2><label>Month <input type="month" id="month"></label><div id="reportTable" class="spaced"></div><button id="export">Download CSV report</button><p class="muted small">Only verified attendance counts towards completed matches. This is a check, not payroll.</p></div></section>
-
+<section id="adminPastEvents" class="panel">
+  <h2>Past Events</h2>
+  <div id="adminPastFixtures"></div>
+</section>
 </div>
 
 <section id="firstAiderApp" class="panel hidden">
@@ -421,10 +424,11 @@ function renderReleaseFixtures() {
   });
 }
 
-  function render(){const active=state.matches.filter(m=>m.status==='scheduled');const covered=active.filter(m=>m.assigned_staff_id).length;const open=active.length-covered;
+  function render(){cconst today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Gibraltar' });
+const active = state.matches.filter(m => m.status === 'scheduled' && m.match_date >= today);const covered=active.filter(m=>m.assigned_staff_id).length;const open=active.length-covered;
 $('metrics').innerHTML=`<div class="card"><div class="metric">${active.length}</div><div class="muted">Scheduled matches</div></div><div class="card"><div class="metric green">${covered}</div><div class="muted">Covered</div></div><div class="card"><div class="metric red">${open}</div><div class="muted">Need ALS cover</div></div>`;
 $('alert').textContent=open?`⚠ ${open} match${open===1?'':'es'} currently need ALS cover.`:'✓ All scheduled matches have ALS cover.';
-const filter=$('filter').value;const list=state.matches.filter(m=>filter==='all'||filter==='cancelled'&&m.status==='cancelled'||filter==='covered'&&m.status==='scheduled'&&m.assigned_staff_id||filter==='uncovered'&&m.status==='scheduled'&&!m.assigned_staff_id);
+const filter=$('filter').value;const list=state.matches.filter(m=>m.match_date>=today).filter(m=>filter==='all'||filter==='cancelled'&&m.status==='cancelled'||filter==='covered'&&m.status==='scheduled'&&m.assigned_staff_id||filter==='uncovered'&&m.status==='scheduled'&&!m.assigned_staff_id);
 $('fixtureList').innerHTML=list.map(m=>{const cancelled=m.status==='cancelled',name=staffName(m.assigned_staff_id),status=cancelled?'Cancelled':name?'Covered':'Needs ALS';const options=state.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');return `<article class="card fixture"><div class="fixture-top"><span class="muted">${esc(m.match_date)} · ${esc(m.match_time?.slice(0,5))}</span><span class="pill ${cancelled?'cancelled':name?'ok':''}">${status}</span></div><h3>${esc(m.home_team)} vs ${esc(m.away_team)}</h3><p>${name?'Assigned: <strong>'+esc(name)+'</strong>':'No first aider assigned'}</p><div class="actions">${!cancelled&&!name?`<button class="secondary" data-action="cover-self" data-id="${m.id}">Cover myself</button>`:''}${!cancelled&&!name?`<select aria-label="Select first aider" id="assign-${m.id}"><option value="">Choose first aider</option>${options}</select><button data-action="assign" data-id="${m.id}">Assign</button>`:''}${name?`<button class="secondary" data-action="release" data-id="${m.id}">Release assignment</button>`:''}${!cancelled&&name?`<label><input type="checkbox" data-action="attendance" data-id="${m.id}" ${m.attended?'checked':''}> Attendance verified</label>`:''}<button class="secondary" data-action="cancel" data-id="${m.id}">${cancelled?'Restore fixture':'Mark cancelled'}</button></div></article>`}).join('')||'<p>No matches in this category.</p>';
 
 $('staffList').innerHTML = state.staff.map(s => `
@@ -444,9 +448,55 @@ $('staffList').innerHTML = state.staff.map(s => `
     </button>
   </p>
 `).join('') || '<p>No first aiders registered yet.</p>';
-renderReport()}
+renderReport();
+renderAdminPastFixtures();
+}
 
-function renderReport(){const month=$('month').value;const rows=state.staff.map(s=>({name:s.name,assigned:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.match_date.startsWith(month)).length,verified:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.attended&&m.match_date.startsWith(month)).length}));$('reportTable').innerHTML=`<table><thead><tr><th>First aider</th><th>Assigned</th><th>Verified</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.assigned}</td><td>${r.verified}</td></tr>`).join('')}</tbody></table>`;return rows}
+function renderAdminPastFixtures() {
+  const container = $('adminPastFixtures');
+  if (!container) return;
+
+  const today = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Europe/Gibraltar'
+  });
+
+  const past = state.matches
+    .filter(match => match.match_date < today)
+    .sort((a, b) => b.match_date.localeCompare(a.match_date));
+
+  container.replaceChildren();
+
+  if (!past.length) {
+    container.textContent = 'No past events yet.';
+    return;
+  }
+
+  past.forEach(match => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginTop = '12px';
+
+    const heading = document.createElement('h3');
+    heading.textContent = `${match.home_team} vs ${match.away_team}`;
+
+    const details = document.createElement('p');
+    details.textContent =
+      `${match.match_date} at ${String(match.match_time).slice(0, 5)}`;
+
+    const assigned = document.createElement('p');
+    assigned.textContent =
+      `Assigned: ${staffName(match.assigned_staff_id) || 'Not assigned'}`;
+
+    const attendance = document.createElement('p');
+    attendance.textContent =
+      `Attendance: ${match.attended === true ? 'Attended' :
+        match.attended === false ? 'Not attended' : 'Not recorded'}`;
+
+    card.append(heading, details, assigned, attendance);
+    container.appendChild(card);
+  });
+}
+  function renderReport(){const month=$('month').value;const rows=state.staff.map(s=>({name:s.name,assigned:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.match_date.startsWith(month)).length,verified:state.matches.filter(m=>m.assigned_staff_id===s.id&&m.status==='scheduled'&&m.attended&&m.match_date.startsWith(month)).length}));$('reportTable').innerHTML=`<table><thead><tr><th>First aider</th><th>Assigned</th><th>Verified</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.assigned}</td><td>${r.verified}</td></tr>`).join('')}</tbody></table>`;return rows}
 async function run(operation){try{notice('');await operation();await refresh()}catch(e){notice('Error: '+(e.message||String(e)))}}
 async function updateFixture(id,values){const {error}=await db.from('fixtures').update(values).eq('id',id);if(error)throw error}
 
