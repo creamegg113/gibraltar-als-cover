@@ -65,6 +65,16 @@ function clean(value) {
   console.log("Supabase connection unavailable — comparison skipped.");
 } else {
   console.log("Supabase client configured — READ ONLY.");
+    const { data: existingFixtures, error } = await db
+  .from("fixtures")
+  .select("id, home_team, away_team, match_date, match_time, source, external_fixture_id");
+
+if (error) {
+  throw new Error(`Supabase fixture query failed: ${error.message}`);
+}
+
+console.log("Existing database fixtures:", existingFixtures.length);
+console.log(JSON.stringify(existingFixtures, null, 2));
 }
 
   console.log("READ ONLY – No database changes made.");
