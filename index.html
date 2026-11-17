@@ -424,7 +424,12 @@ function renderReleaseFixtures() {
   });
 }
 
-  function render(){cconst today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Gibraltar' });
+ 
+function render() {
+  const today = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Europe/Gibraltar'
+  });
+
 const active = state.matches.filter(m => m.status === 'scheduled' && m.match_date >= today);const covered=active.filter(m=>m.assigned_staff_id).length;const open=active.length-covered;
 $('metrics').innerHTML=`<div class="card"><div class="metric">${active.length}</div><div class="muted">Scheduled matches</div></div><div class="card"><div class="metric green">${covered}</div><div class="muted">Covered</div></div><div class="card"><div class="metric red">${open}</div><div class="muted">Need ALS cover</div></div>`;
 $('alert').textContent=open?`⚠ ${open} match${open===1?'':'es'} currently need ALS cover.`:'✓ All scheduled matches have ALS cover.';
