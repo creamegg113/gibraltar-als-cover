@@ -428,9 +428,16 @@ function renderReleaseFixtures() {
   button.disabled = false;
 
   eligible.forEach(match => {
-    const label = document.createElement('label');
-    label.style.display = 'block';
-    label.style.marginBottom = '12px';
+    
+
+const label = document.createElement('label');
+label.classList.add('fixture-unreleased');
+label.style.padding = '12px';
+label.style.borderRadius = '8px';
+label.style.display = 'block';
+label.style.marginBottom = '12px';
+
+
 
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
