@@ -432,6 +432,8 @@ function renderReleaseFixtures() {
 
 const label = document.createElement('label');
 label.classList.add('fixture-unreleased');
+    label.style.setProperty('background-color', '#e8e8e8', 'important');
+label.style.setProperty('border-left', '5px solid #c0c0c0', 'important');
 label.style.padding = '12px';
 label.style.borderRadius = '8px';
 label.style.display = 'block';
