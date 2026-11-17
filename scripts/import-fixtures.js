@@ -55,7 +55,13 @@ function clean(value) {
       dateTime: clean(date?.[1]),
       competition: clean(competition?.[1]),
       homeTeam: clean(teams[0]?.[1]),
-      awayTeam: clean(teams[1]?.[1])
+      awayTeam: clean(teams[1]?.[1]),
+externalFixtureId: [
+  clean(date?.[1]),
+  clean(competition?.[1]),
+  clean(teams[0]?.[1]),
+  clean(teams[1]?.[1])
+].join("|")
     };
   });
 
