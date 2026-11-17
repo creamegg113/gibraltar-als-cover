@@ -66,7 +66,7 @@ function clean(value) {
 } else {
   console.log("Supabase client configured — READ ONLY.");
 }
-}
+
   console.log("READ ONLY – No database changes made.");
 }
 
