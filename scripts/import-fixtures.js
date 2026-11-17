@@ -151,7 +151,7 @@ console.log(JSON.stringify(newFixtures, null, 2));
 
 console.log("Fixtures prepared for import:", fixturesToImport.length);
     
-if (false && fixturesToImport.length > 0) {
+if (fixturesToImport.length > 0) {
   const { data: importedFixtures, error: importError } = await db
     .from("fixtures")
     .upsert(fixturesToImport, {
