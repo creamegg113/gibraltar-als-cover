@@ -8,6 +8,11 @@ const db = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 
 const SOURCE_URL =
   "https://www.gibraltarfa.com/competitions/gibraltar-football-league-26-27-3395567";
+const WOMENS_LEAGUE_URL =
+  "https://www.gibraltarfa.com/competitions/womens-league-26-27-3396360/matches";
+
+const RESERVE_LEAGUE_URL =
+  "https://www.gibraltarfa.com/competitions/reserve-league-26-27-3395742/matches";
 
 async function testFixtureSource() {
   console.log("First Response – Upcoming fixture extraction");
