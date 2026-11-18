@@ -1,0 +1,21 @@
+
+name: Test Women's and Reserve League Fixtures
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-other-leagues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test Women's and Reserve League sources
+        run: node scripts/test-other-leagues.js
