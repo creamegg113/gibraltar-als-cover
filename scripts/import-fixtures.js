@@ -73,7 +73,17 @@ function parseFixtureDateTime(value) {
     throw new Error(`Unknown fixture month: ${match[2]}`);
   }
 
-  const year = 2026;
+ const now = new Date();
+const currentYear = now.getFullYear();
+const currentMonth = now.getMonth();
+
+const seasonStartYear = currentMonth >= 6
+  ? currentYear
+  : currentYear - 1;
+
+const year = month >= 6
+  ? seasonStartYear
+  : seasonStartYear + 1;
   const day = match[1].padStart(2, "0");
   const monthNumber = String(month + 1).padStart(2, "0");
   const time = `${match[3].padStart(2, "0")}:${match[4]}:00`;
@@ -84,7 +94,7 @@ function parseFixtureDateTime(value) {
   };
 }
 
-  const fixtures = items.map((item) => {
+ const fixtures = items.map((item) => {
     const content = item[1];
 const parsedDate = parseFixtureDateTime(clean(content.match(/<h4[^>]*>([\s\S]*?)<\/h4>/i)?.[1]));
     const date = content.match(/<h4[^>]*>([\s\S]*?)<\/h4>/i);
@@ -107,6 +117,15 @@ externalFixtureId: [
     };
   });
 
+  const today = new Date().toLocaleDateString("en-CA", {
+  timeZone: "Europe/Gibraltar"
+});
+
+const futureFixtures = fixtures.filter(fixture =>
+  fixture.matchDate >= today
+);
+
+console.log("Future fixtures:", futureFixtures.length);
   console.log("Fixtures extracted:", fixtures.length);
   console.log(JSON.stringify(fixtures, null, 2));
   if (!db) {
@@ -129,7 +148,7 @@ console.log(JSON.stringify(existingFixtures, null, 2));
     .filter(Boolean)
 );
 
-const newFixtures = fixtures.filter(fixture => {
+const newFixtures = futureFixtures.filter(fixture => {
   const alreadyExists = existingFixtures.some(existing => {
 
     const sameExternalId =
