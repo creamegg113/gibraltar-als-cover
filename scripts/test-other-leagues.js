@@ -6,7 +6,7 @@ const leagues = [
   },
   {
     name: "Reserve League",
-    url: "https://www.gibraltarfa.com/competitions/reserve-league-26-27-3395742/matches"
+    url: "https://www.gibraltarfa.com/competitions/reserve-league-26-27-3395742"
   }
 ];
 
