@@ -33,6 +33,12 @@ const items = carousel
 
 console.log("Fixture cards found:", items.length);
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
+      console.log(
+  "All fixture dates:",
+  items.map(item =>
+    item[1].match(/<h4[^>]*>(.*?)<\/h4>/i)?.[1] || "Date not found"
+  )
+);
 
       const matches = html.match(/.{0,100}(fixture|match|schedule|competition).{0,100}/gi);
 
