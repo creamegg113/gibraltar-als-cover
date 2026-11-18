@@ -16,6 +16,10 @@ async function testOtherLeagues() {
 
     try {
       const response = await fetch(league.url);
+      if (response.status === 202) {
+  console.log("Website security challenge detected — skipping this league safely.");
+  continue;
+}
       const html = await response.text();
 
       console.log("HTTP status:", response.status);
