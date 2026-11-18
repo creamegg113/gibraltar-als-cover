@@ -13,12 +13,19 @@ const WOMENS_LEAGUE_URL =
 
 const RESERVE_LEAGUE_URL =
   "https://www.gibraltarfa.com/competitions/reserve-league-26-27-3395742/matches";
+const LEAGUES = [
+  { name: "Men's League", url: SOURCE_URL },
+  { name: "Women's League", url: WOMENS_LEAGUE_URL },
+  { name: "Reserve League", url: RESERVE_LEAGUE_URL }
+];
 
 async function testFixtureSource() {
+  for (const league of LEAGUES) {
+  console.log("Processing:", league.name);
   console.log("First Response – Upcoming fixture extraction");
   console.log("Mode: READ ONLY");
 
-const response = await fetch(SOURCE_URL);
+const response = await fetch(league.url);
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
@@ -194,7 +201,7 @@ if (fixturesToImport.length > 0) {
 }
 
 }
-
+}
   console.log("Fixture import process completed.");
 }
 
