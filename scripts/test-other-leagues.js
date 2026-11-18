@@ -21,6 +21,17 @@ async function testOtherLeagues() {
       console.log("HTTP status:", response.status);
       console.log("HTML length:", html.length);
       console.log("Contains upcoming-boxes:", html.includes("upcoming-boxes"));
+      const carousel = html.match(
+  /<ul\b[^>]*class=["'][^"']*\bslides\b[^"']*upcoming-boxes[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i
+);
+
+const items = carousel
+  ? [...carousel[1].matchAll(
+      /<li\b[^>]*class=["'][^"']*\bbox\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi
+    )]
+  : [];
+
+console.log("Fixture cards found:", items.length);
 
       const matches = html.match(/.{0,100}(fixture|match|schedule|competition).{0,100}/gi);
 
