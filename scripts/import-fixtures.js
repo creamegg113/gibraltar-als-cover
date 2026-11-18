@@ -18,7 +18,7 @@ async function testFixtureSource() {
   console.log("First Response – Upcoming fixture extraction");
   console.log("Mode: READ ONLY");
 
-  const response = await fetch(SOURCE_URL);
+const response = await fetch(WOMENS_LEAGUE_URL);
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
@@ -156,7 +156,7 @@ console.log(JSON.stringify(newFixtures, null, 2));
 
 console.log("Fixtures prepared for import:", fixturesToImport.length);
     
-if (fixturesToImport.length > 0) {
+if (false && fixturesToImport.length > 0) {
   const { data: importedFixtures, error: importError } = await db
     .from("fixtures")
     .upsert(fixturesToImport, {
