@@ -47,8 +47,9 @@ console.log("Page preview:", html.slice(0, 500));
   );
 
   if (!carousel) {
-    throw new Error("Upcoming fixtures carousel not found");
-  }
+  console.log("No upcoming fixtures carousel found for:", league.name);
+  continue;
+}
 
   const items = [...carousel[1].matchAll(
     /<li\b[^>]*class=["'][^"']*\bbox\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi
