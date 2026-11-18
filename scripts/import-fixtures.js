@@ -26,7 +26,10 @@ async function testFixtureSource() {
   console.log("Mode: READ ONLY");
 
 const response = await fetch(league.url);
-
+if (response.status === 202) {
+  console.log("Security challenge detected for:", league.name);
+  continue;
+}
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
