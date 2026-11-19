@@ -51,6 +51,7 @@ console.log("Fixture cards found:", items.length);
   "Upcoming fixture sections:",
   (html.match(/upcoming-boxes/gi) || []).length
 );
+      console.log("Dedicated matches page:", league.url + "/matches");
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
       console.log(
   "All fixture dates:",
