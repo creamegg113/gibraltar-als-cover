@@ -85,6 +85,17 @@ console.log(
     .filter(Boolean)
     .slice(0, 20)
 );
+      const matchdayPosition = calendarHtml.indexOf("Matchday 1 of");
+
+console.log(
+  "Matchday HTML structure:",
+  matchdayPosition >= 0
+    ? calendarHtml.slice(
+        Math.max(0, matchdayPosition - 500),
+        matchdayPosition + 1200
+      )
+    : "Matchday heading not found"
+);
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
       console.log(
   "All fixture dates:",
