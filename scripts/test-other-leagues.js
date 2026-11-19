@@ -2,11 +2,11 @@
 const leagues = [
   {
     name: "Women's League",
-    url: "https://www.gibraltarfa.com/competitions/womens-league-26-27-3396360"
+    url: "https://www.gibraltarfa.com/competitions/womens-league-26-27-3396360/matches"
   },
   {
     name: "Reserve League",
-    url: "https://www.gibraltarfa.com/competitions/reserve-league-26-27-3395742"
+    url: "https://www.gibraltarfa.com/competitions/reserve-league-26-27-3395742/matches"
   }
 ];
 
