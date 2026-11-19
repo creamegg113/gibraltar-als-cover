@@ -38,7 +38,7 @@ async function getLeague(league) {
   if (!Array.isArray(groups) || !groups.length) throw new Error('No matchdays returned');
   const matches = groups.flatMap(group => (group.matches || []).map(m => {
     if (!m.home || !m.away || !m.details) throw new Error('Incomplete match data');
-    const scheduled = m.details.match(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})\\s*-\\s*(\\d{2}:\\d{2})$/);
+    const scheduled = m.details.match(/^(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2}:\d{2})$/);
     return { league: league.id, matchday: group.matchday, home: m.home, away: m.away,
       sourceDetails: m.details, status: scheduled ? 'scheduled' : 'other',
       date: scheduled ? `${scheduled[3]}-${scheduled[2]}-${scheduled[1]}` : null,
