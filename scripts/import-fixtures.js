@@ -18,16 +18,52 @@ const LEAGUES = [
   { name: "Women's League", url: WOMENS_LEAGUE_URL },
   { name: "Reserve League", url: RESERVE_LEAGUE_URL }
 ];
+const sleep = ms =>
+  new Promise(resolve => setTimeout(resolve, ms));
 
+async function fetchWithRetry(url, leagueName) {
+  const delays = [0, 120000, 300000, 900000];
+
+  for (let attempt = 0; attempt < delays.length; attempt++) {
+    if (delays[attempt] > 0) {
+      console.log(
+        `Waiting ${delays[attempt] / 60000} minutes before retry...`
+      );
+      await sleep(delays[attempt]);
+    }
+
+    const response = await fetch(url);
+
+    if (response.status !== 202 && response.ok) {
+      console.log(
+        `${leagueName}: successful on attempt ${attempt + 1}`
+      );
+      return response;
+    }
+
+    console.log(
+      `${leagueName}: attempt ${attempt + 1} failed (HTTP ${response.status})`
+    );
+
+    if (response.status !== 202 && response.status !== 429 &&
+        response.status < 500) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+  }
+
+  console.log(`${leagueName}: all retry attempts exhausted`);
+  return null;
+}
 async function testFixtureSource() {
   for (const league of LEAGUES) {
   console.log("Processing:", league.name);
   console.log("First Response – Upcoming fixture extraction");
   console.log("Mode: READ ONLY");
 
-const response = await fetch(league.url);
-if (response.status === 202) {
-  console.log("Security challenge detected for:", league.name);
+const response = await fetchWithRetry(league.url, league.name);
+
+if (!response) {
+  console.log("Unable to retrieve fixtures for:", league.name);
   continue;
 }
   if (!response.ok) {
