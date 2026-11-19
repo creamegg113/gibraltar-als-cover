@@ -25,6 +25,12 @@ async function testOtherLeagues() {
       console.log("HTTP status:", response.status);
       console.log("HTML length:", html.length);
       console.log("Contains upcoming-boxes:", html.includes("upcoming-boxes"));
+      console.log(
+  "Calendar match samples:",
+  [...html.matchAll(/<div\b[^>]*class=["'][^"']*\bmatch\b[^"']*["'][^>]*>/gi)]
+    .slice(0, 3)
+    .map(match => html.slice(match.index, match.index + 1500))
+);
       const carousel = html.match(
   /<ul\b[^>]*class=["'][^"']*\bslides\b[^"']*upcoming-boxes[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i
 );
