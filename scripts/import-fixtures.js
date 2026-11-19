@@ -58,7 +58,9 @@ console.log("Page preview:", html.slice(0, 500));
   console.log("No upcoming fixtures carousel found for:", league.name);
   continue;
 }
+    
 if (isCalendarLeague) {
+  console.log("Calendar HTML available:", html.includes("competition-calendar"));
   console.log("Calendar extraction not yet implemented:", league.name);
   continue;
 }
