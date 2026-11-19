@@ -54,11 +54,14 @@ console.log("Page preview:", html.slice(0, 500));
     /<ul\b[^>]*class=["'][^"']*\bslides\b[^"']*upcoming-boxes[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i
   );
 
-  if (!carousel) {
+  if (!carousel && !isCalendarLeague) {
   console.log("No upcoming fixtures carousel found for:", league.name);
   continue;
 }
-
+if (isCalendarLeague) {
+  console.log("Calendar extraction not yet implemented:", league.name);
+  continue;
+}
   const items = [...carousel[1].matchAll(
     /<li\b[^>]*class=["'][^"']*\bbox\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi
   )];
