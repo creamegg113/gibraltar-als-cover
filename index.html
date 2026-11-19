@@ -67,6 +67,12 @@
 <div class="cards" id="metrics"></div><div id="alert" class="notice" role="status"></div>
 <nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button></nav>
 
+<section class="panel" id="fixtureProposalPanel">
+  <h3>Gibraltar FA — Fixture changes awaiting review</h3>
+  <p class="muted">Proposals are not published automatically. Only new fixtures can be approved here; reschedules need manual review.</p>
+  <button class="secondary" id="refreshProposals" type="button">Refresh proposed changes</button>
+  <div id="fixtureProposalList" class="fixtures spaced"></div>
+</section>
 <div class="panel" id="releaseMatchesPanel">
   <h3>Release ALS Matches</h3>
   <p class="muted">
@@ -400,10 +406,51 @@ await loadAvailableFixtures();
   showLogin("This account is not authorised.");
 }
 
+async function loadFixtureProposals(){
+  const container = $('fixtureProposalList');
+  if (!container) return;
+  const {data,error} = await db.from('fixture_proposals')
+    .select('id,proposal_type,league,home_team,away_team,proposed_date,proposed_time,existing_fixture_id')
+    .eq('review_status','pending').order('proposed_date').limit(300);
+  container.replaceChildren();
+  if(error){container.textContent='Unable to load proposals: '+error.message;return;}
+  if(!data?.length){container.textContent='No pending fixture changes.';return;}
+  for(const p of data){
+    const card=document.createElement('div');card.className='card';
+    const heading=document.createElement('h4');heading.textContent=p.home_team+' vs '+p.away_team;
+    const info=document.createElement('p');
+    info.textContent=p.league+' — '+p.proposed_date+' '+String(p.proposed_time).slice(0,5)+' — '+p.proposal_type.replaceAll('_',' ');
+    const buttons=document.createElement('div');buttons.className='actions';
+    const reject=document.createElement('button');reject.className='secondary';reject.textContent='Reject';
+    buttons.append(reject);
+    if(p.proposal_type==='possible_new_fixture'){
+      const approve=document.createElement('button');approve.textContent='Approve as unreleased fixture';
+      approve.addEventListener('click',()=>reviewProposal(p.id,'approve',approve));
+      buttons.prepend(approve);
+    } else {
+      const note=document.createElement('p');note.className='muted';
+      note.textContent='Manual review required; this tool will not change an existing fixture.';
+      card.append(note);
+    }
+    reject.addEventListener('click',()=>reviewProposal(p.id,'reject',reject));
+    card.append(heading,info,buttons);container.append(card);
+  }
+}
+async function reviewProposal(id,decision,button){
+  if(!confirm(decision==='approve'?'Create this new fixture as unreleased?':'Reject this proposed change?'))return;
+  button.disabled=true;
+  try{
+    const {data,error}=await db.rpc('review_fixture_proposal',{p_id:id,p_decision:decision});
+    if(error)throw error;
+    alert(data);
+    await Promise.all([refresh(),loadFixtureProposals()]);
+  }catch(e){alert('Review failed: '+e.message);button.disabled=false;}
+}
+$('refreshProposals').addEventListener('click',loadFixtureProposals);
 async function refresh(){const [s,f]=await Promise.all([db.from('first_aiders').select('id,name,approved').order('name'),db.from('fixtures')
 .select('id,home_team,away_team,match_date,match_time,assigned_staff_id,status,attended,is_released')
 .order('match_date').order('match_time')]);if(s.error)throw s.error;if(f.error)throw f.error;state.staff=s.data;
-state.matches=f.data;render();renderReleaseFixtures();notice('')
+state.matches=f.data;render();renderReleaseFixtures();await loadFixtureProposals();notice('')
 }
 function staffName(id){return state.staff.find(s=>s.id===id)?.name||null}
 

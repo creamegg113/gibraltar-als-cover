@@ -30,6 +30,12 @@ jobs:
             npm install --no-save --no-package-lock @supabase/supabase-js@2
             node scripts/compare-fixtures-readonly.js
           fi
+      - name: Stage fixture proposals for administrator review
+        if: ${{ success() && vars.ENABLE_FIXTURE_STAGING == 'true' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/stage-fixture-proposals.js
       - name: Save snapshot and diagnostics even if a league fails
         if: always()
         uses: actions/upload-artifact@v4
