@@ -166,7 +166,7 @@ const db=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state={matches:[],staff:[],proposals:[]};let currentUser=null;
-const currentMonth = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Gibraltar',year:'numeric',month:'2-digit'}).format(new Date()).slice(0,7);
+const currentMonth = () => {const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Gibraltar',year:'numeric',month:'2-digit'}).formatToParts(new Date());return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value;};
 function moveMonth(id,offset){
   const field=$(id),value=field.value||currentMonth();
   const [y,m]=value.split('-').map(Number);
