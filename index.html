@@ -36,6 +36,9 @@ button, select, input {min-height:44px}
 #fixtureProposalList .card{margin:0;padding:14px}
 #fixtureProposalList h4{margin:0 0 8px}
 #fixtureProposalList .actions button{flex:1}
+#fixtureProposalPanel label{cursor:pointer}
+#releaseSelectedBtn{width:100%;position:sticky;bottom:8px;z-index:2}
+#releaseWeekControls input{width:100%;min-height:44px}
 #fixtureProposalPanel.hidden{display:none}
 @media(max-width:600px){
   main{padding:10px}
@@ -88,11 +91,11 @@ button, select, input {min-height:44px}
   <div id="app" class="hidden">
 <div class="toolbar spaced"><span id="signedIn" class="muted"></span><button id="logout" class="secondary">Sign out</button></div>
 <div class="cards" id="metrics"></div><div id="alert" class="notice" role="status"></div>
-<nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button><button class="secondary" data-tab="approvals">Approvals</button></nav>
+<nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button><button class="secondary" data-tab="approvals">Select &amp; Release</button></nav>
 
 <section class="panel hidden" id="fixtureProposalPanel">
-  <h3>Gibraltar FA — Fixture changes awaiting review</h3>
-  <p class="muted">Proposals are not published automatically. Only new fixtures can be approved here; reschedules need manual review.</p>
+  <h3>Select &amp; Release Matches</h3>
+  <p class="muted">Choose matches for medical cover, then release them directly to first aiders. Select individual matches or all visible matches for a week or month.</p>
   <div class="month-controls">
   <button type="button" class="secondary" id="proposalPrevMonth" aria-label="Previous month">‹</button>
   <input type="month" id="proposalMonth" aria-label="Approval month">
@@ -104,23 +107,14 @@ button, select, input {min-height:44px}
     <option value="reserves">Reserve League</option>
   </select>
 </div>
-<button class="secondary" id="refreshProposals" type="button">Refresh proposed changes</button>
+<select id="releasePeriod" aria-label="Release period"><option value="month">Monthly</option><option value="week">Weekly</option></select>
+<div id="releaseWeekControls" class="hidden"><label for="releaseWeek">Week beginning</label><input type="date" id="releaseWeek"></div>
+<button class="secondary" id="refreshProposals" type="button">Refresh Gibraltar FA matches</button>
+<div class="toolbar spaced"><label><input type="checkbox" id="selectAllRelease"> Select all displayed</label><span id="releaseSelectedCount">0 selected</span></div>
+<button type="button" id="releaseSelectedBtn" disabled>Release selected matches</button>
 <p id="proposalCount" class="muted small"></p>
   <div id="fixtureProposalList" class="fixtures spaced"></div>
 </section>
-<div class="panel" id="releaseMatchesPanel">
-  <h3>Release ALS Matches</h3>
-  <p class="muted">
-    Make available fixtures visible to registered first aiders.
-  </p>
-  
-<div id="releaseFixtureList"></div>
-
-  <button id="releaseMatchesBtn" type="button">
-    Release available matches
-  </button>
-</div>
-
   <section id="fixtures">
 <div class="month-controls">
   <button type="button" class="secondary" id="fixturePrevMonth" aria-label="Previous month">‹</button>
@@ -464,30 +458,63 @@ await loadAvailableFixtures();
   showLogin("This account is not authorised.");
 }
 
+const selectedReleases=new Set();
+const releaseKey=(type,id)=>type+':'+id;
+function eligibleReleaseItems(){
+  const month=$('proposalMonth').value,league=$('proposalLeague').value;
+  const week=$('releaseWeek').value;
+  const weekEnd=week?new Date(new Date(week+'T12:00:00Z').getTime()+7*86400000).toISOString().slice(0,10):'';
+  const inPeriod=date=>date.startsWith(month)&&($('releasePeriod').value!=='week'||(week&&date>=week&&date<weekEnd));
+  const pending=state.proposals.filter(p=>p.proposal_type==='possible_new_fixture'&&inPeriod(p.proposed_date)&&(league==='all'||p.league===league))
+    .map(p=>({type:'proposal',id:p.id,date:p.proposed_date,time:p.proposed_time,home:p.home_team,away:p.away_team,league:p.league}));
+  const existing=state.matches.filter(m=>m.status==='scheduled'&&m.is_released===false&&m.assigned_staff_id==null&&inPeriod(m.match_date))
+    .map(m=>({type:'fixture',id:m.id,date:m.match_date,time:m.match_time,home:m.home_team,away:m.away_team,league:'Previously added'}));
+  // Existing manually created fixtures have no league metadata, so keep them visible under All leagues.
+  return [...pending,...(league==='all'?existing:[])].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+}
 function renderProposalCards(){
   const container=$('fixtureProposalList');container.replaceChildren();
-  const month=$('proposalMonth').value,league=$('proposalLeague').value;
-  const filtered=state.proposals.filter(p=>p.proposed_date.startsWith(month)&&(league==='all'||p.league===league));
-  $('proposalCount').textContent=filtered.length+' pending proposal(s) for this month'+(state.proposals.length>filtered.length?' · '+state.proposals.length+' total pending':'');
-  if(!filtered.length){container.textContent='No pending changes for this month. Use the arrows to view other months.';return;}
-  for(const p of filtered){
-    const card=document.createElement('div');card.className='card';
-    const heading=document.createElement('h4');heading.textContent=p.home_team+' vs '+p.away_team;
-    const info=document.createElement('p');info.className='muted';
-    info.textContent=p.league+' · '+p.proposed_date+' · '+String(p.proposed_time).slice(0,5)+' · '+p.proposal_type.replaceAll('_',' ');
-    const buttons=document.createElement('div');buttons.className='actions';
-    const reject=document.createElement('button');reject.className='secondary';reject.textContent='Reject';buttons.append(reject);
-    if(p.proposal_type==='possible_new_fixture'){
-      const approve=document.createElement('button');approve.textContent='Approve (unreleased)';
-      approve.addEventListener('click',()=>reviewProposal(p.id,'approve',approve));buttons.prepend(approve);
-    }else{
-      const note=document.createElement('p');note.className='muted';
-      note.textContent='Manual review needed; existing fixture will not be changed.';card.append(note);
-    }
-    reject.addEventListener('click',()=>reviewProposal(p.id,'reject',reject));
-    card.append(heading,info,buttons);container.append(card);
+  const items=eligibleReleaseItems(),keys=new Set(items.map(x=>releaseKey(x.type,x.id)));
+  for(const key of selectedReleases)if(!keys.has(key))selectedReleases.delete(key);
+  const count=items.filter(x=>selectedReleases.has(releaseKey(x.type,x.id))).length;
+  $('releaseSelectedCount').textContent=count+' selected';
+  $('releaseSelectedBtn').disabled=count===0;
+  $('selectAllRelease').checked=items.length>0&&count===items.length;
+  $('proposalCount').textContent=items.length+' match(es) available for selection';
+  if(!items.length){container.textContent='No matches awaiting release in this period. Try another month, week or league.';return;}
+  let lastDate='';
+  for(const item of items){
+    if(item.date!==lastDate){lastDate=item.date;const h=document.createElement('h4');h.textContent=new Date(item.date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});container.append(h);}
+    const label=document.createElement('label');label.className='card';label.style.display='flex';label.style.gap='12px';label.style.alignItems='center';label.style.marginBottom='8px';
+    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=selectedReleases.has(releaseKey(item.type,item.id));checkbox.style.flexShrink='0';
+    checkbox.addEventListener('change',()=>{const k=releaseKey(item.type,item.id);if(checkbox.checked)selectedReleases.add(k);else selectedReleases.delete(k);renderProposalCards();});
+    const detail=document.createElement('span');detail.textContent=item.home+' vs '+item.away+' · '+String(item.time||'').slice(0,5)+' · '+item.league;
+    label.append(checkbox,detail);container.append(label);
   }
+  const other=state.proposals.filter(p=>p.proposal_type!=='possible_new_fixture'&&p.proposed_date.startsWith($('proposalMonth').value));
+  if(other.length){const warning=document.createElement('p');warning.className='muted';warning.textContent=other.length+' possible reschedule/ambiguous change(s) require separate manual review; they cannot be released here.';container.append(warning);}
 }
+$('selectAllRelease').addEventListener('change',e=>{for(const item of eligibleReleaseItems()){const key=releaseKey(item.type,item.id);if(e.target.checked)selectedReleases.add(key);else selectedReleases.delete(key);}renderProposalCards();});
+$('releasePeriod').addEventListener('change',()=>{$('releaseWeekControls').classList.toggle('hidden',$('releasePeriod').value!=='week');renderProposalCards();});
+$('releaseWeek').value=new Date().toISOString().slice(0,10);
+$('releaseWeek').addEventListener('change',renderProposalCards);
+$('releaseSelectedBtn').addEventListener('click',async()=>{
+  const items=eligibleReleaseItems().filter(x=>selectedReleases.has(releaseKey(x.type,x.id)));
+  if(!items.length)return;
+  if(!confirm('Release '+items.length+' selected match(es) to first aiders?'))return;
+  const button=$('releaseSelectedBtn');button.disabled=true;
+  try{
+    const {data,error}=await db.rpc('release_selected_matches',{
+      p_proposal_ids:items.filter(x=>x.type==='proposal').map(x=>x.id),
+      p_fixture_ids:items.filter(x=>x.type==='fixture').map(x=>x.id)
+    });
+    if(error)throw error;
+    selectedReleases.clear();
+    await refresh();
+    alert(data+' match(es) released to first aiders.');
+  }catch(error){alert('Nothing released: '+error.message);}
+  finally{renderProposalCards();}
+});
 async function loadFixtureProposals(){
   const container=$('fixtureProposalList');
   const all=[];
@@ -514,86 +541,10 @@ $('refreshProposals').addEventListener('click',loadFixtureProposals);
 async function refresh(){const [s,f]=await Promise.all([db.from('first_aiders').select('id,name,approved').order('name'),db.from('fixtures')
 .select('id,home_team,away_team,match_date,match_time,assigned_staff_id,status,attended,is_released')
 .order('match_date').order('match_time')]);if(s.error)throw s.error;if(f.error)throw f.error;state.staff=s.data;
-state.matches=f.data;render();renderReleaseFixtures();await loadFixtureProposals();notice('')
+state.matches=f.data;render();await loadFixtureProposals();notice('')
 }
 function staffName(id){return state.staff.find(s=>s.id===id)?.name||null}
 
-function renderReleaseFixtures() {
-  const container = $('releaseFixtureList');
-  const button = $('releaseMatchesBtn');
-
-  const eligible = state.matches.filter(match =>
-    match.status === 'scheduled' &&
-    match.assigned_staff_id == null &&
-    match.is_released === false
-  );
-
-  container.replaceChildren();
-
-  if (eligible.length === 0) {
-    container.textContent = 'No matches awaiting release.';
-    button.disabled = true;
-    return;
-  }
-
-  button.disabled = false;
-
-  eligible.forEach(match => {
-    
-
-const label = document.createElement('label');
-label.classList.add('fixture-unreleased');
-    label.style.setProperty('background-color', '#e8e8e8', 'important');
-label.style.setProperty('border-left', '5px solid #c0c0c0', 'important');
-label.style.padding = '12px';
-label.style.borderRadius = '8px';
-label.style.display = 'block';
-label.style.marginBottom = '12px';
-
-
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.className = 'releaseFixtureCheckbox';
-    checkbox.value = match.id;
-
-    const description = document.createElement('span');
-    description.textContent =
-      ` ${match.home_team} vs ${match.away_team} — ${match.match_date} at ${match.match_time}`;
-
-    label.append(checkbox, description);
-    container.appendChild(label);
-    
-const adminButton = document.createElement('button');
-adminButton.type = 'button';
-adminButton.textContent = "I'll cover this match";
-adminButton.className = 'secondary';
-adminButton.style.marginBottom = '12px';
-
-adminButton.addEventListener('click', async () => {
-  if (!confirm('Assign this match to yourself?')) return;
-
-  adminButton.disabled = true;
-
-  try {
-    const { error } = await db.rpc('admin_cover_myself', {
-      p_fixture_id: Number(match.id)
-    });
-
-    if (error) throw error;
-    await refresh();
-  } catch (error) {
-    alert('Unable to assign match: ' + error.message);
-    adminButton.disabled = false;
-  }
-});
-
-container.appendChild(adminButton);
-
-  });
-}
-
- 
 function render() {
   const today = new Date().toLocaleDateString('en-CA', {
     timeZone: 'Europe/Gibraltar'
@@ -756,8 +707,6 @@ $('firstAiderLogout').addEventListener('click', async () => {
 });
 document.querySelectorAll('nav button').forEach(button => {
   button.addEventListener('click', () => {
-    document.getElementById('releaseMatchesPanel')
-      .classList.toggle('hidden', button.dataset.tab !== 'fixtures');
     document.getElementById('fixtureProposalPanel')
       .classList.toggle('hidden', button.dataset.tab !== 'approvals');
   });
@@ -816,48 +765,6 @@ $('staffList').addEventListener('click', async (e) => {
   $('fixtureList').addEventListener('change',e=>{if(e.target.dataset.action!=='attendance')return;const m=state.matches.find(x=>x.id===Number(e.target.dataset.id));if(m?.assigned_staff_id&&m.status==='scheduled')run(()=>updateFixture(m.id,{attended:e.target.checked}))});
 $('addStaff').addEventListener('submit',e=>{e.preventDefault();const name=$('staffName').value.trim();if(!name||state.staff.some(s=>s.name.toLowerCase()===name.toLowerCase())){notice('Enter a unique first aider name.');return}run(async()=>{const {error}=await db.from('first_aiders').insert({name});if(error)throw error;$('staffName').value=''})});
 $('addFixture').addEventListener('submit',e=>{e.preventDefault();run(async()=>{const {error}=await db.from('fixtures').insert({home_team:$('home').value.trim(),away_team:$('away').value.trim(),match_date:$('date').value,match_time:$('time').value,status:'scheduled',attended:false});if(error)throw error;$('addFixture').reset()})});
-
-
-$('releaseMatchesBtn').addEventListener('click', async () => {
-  const selectedIds = Array.from(
-    document.querySelectorAll('.releaseFixtureCheckbox:checked')
-  ).map(checkbox => Number(checkbox.value));
-
-  if (selectedIds.length === 0) {
-    alert('Please select at least one match to release.');
-    return;
-  }
-
-  const confirmed = confirm(
-    `Release ${selectedIds.length} selected match(es) to first aiders?`
-  );
-
-  if (!confirmed) return;
-
-  const button = $('releaseMatchesBtn');
-  button.disabled = true;
-
-  try {
-    const { data, error } = await db
-      .from('fixtures')
-      .update({ is_released: true })
-      .in('id', selectedIds)
-      .eq('status', 'scheduled')
-      .is('assigned_staff_id', null)
-      .eq('is_released', false)
-      .select('id');
-
-    if (error) throw error;
-
-    alert(`${data.length} match(es) released successfully.`);
-    await refresh();
-
-  } catch (error) {
-    alert('Unable to release matches: ' + error.message);
-  } finally {
-    button.disabled = false;
-  }
-});
 
 
   $('export').addEventListener('click',()=>{const rows=renderReport();const csv=[['First aider','Assigned matches','Verified attendance'],...rows.map(r=>[r.name,r.assigned,r.verified])].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`als-cover-${$('month').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
