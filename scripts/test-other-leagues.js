@@ -24,6 +24,11 @@ async function testOtherLeagues() {
 
       console.log("HTTP status:", response.status);
       console.log("HTML length:", html.length);
+      console.log(
+  "Calendar HTML sample:",
+  html.match(/<div\b[^>]*class=["'][^"']*\bmatch\b[^"']*["'][^>]*>[\s\S]{0,1500}/i)?.[0]
+  || "No calendar match found"
+);
       console.log("Contains upcoming-boxes:", html.includes("upcoming-boxes"));
       console.log(
   "Calendar match samples:",
