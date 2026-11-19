@@ -41,7 +41,15 @@ console.log("HTML length:", html.length);
 console.log("Contains upcoming-boxes:", html.includes("upcoming-boxes"));
 console.log("Page preview:", html.slice(0, 500));
 
-
+// Women's and Reserve League use a different fixture layout.
+// Calendar-based extraction will be added separately.
+    const isCalendarLeague = league.name !== "Men's League";
+    if (isCalendarLeague) {
+  console.log("Calendar fixture layout detected:", league.name);
+}
+    if (isCalendarLeague) {
+  console.log("Calendar match sections:", (html.match(/class=["'][^"']*\bmatch\b[^"']*["']/g) || []).length);
+}
   const carousel = html.match(
     /<ul\b[^>]*class=["'][^"']*\bslides\b[^"']*upcoming-boxes[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i
   );
