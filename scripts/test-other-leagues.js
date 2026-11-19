@@ -47,6 +47,10 @@ const items = carousel
   : [];
 
 console.log("Fixture cards found:", items.length);
+      console.log(
+  "Upcoming fixture sections:",
+  (html.match(/upcoming-boxes/gi) || []).length
+);
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
       console.log(
   "All fixture dates:",
