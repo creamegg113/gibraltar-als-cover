@@ -27,6 +27,29 @@
   border-left: 5px solid #1976d2;
 }
 
+
+/* Mobile-first controls: comfortable touch targets and single-column cards */
+button, select, input {min-height:44px}
+.month-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+.month-controls input[type=month]{flex:1;min-width:135px}
+.month-controls select{flex:1;min-width:130px}
+#fixtureProposalList .card{margin:0;padding:14px}
+#fixtureProposalList h4{margin:0 0 8px}
+#fixtureProposalList .actions button{flex:1}
+#fixtureProposalPanel.hidden{display:none}
+@media(max-width:600px){
+  main{padding:10px}
+  .panel{padding:14px}
+  nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  nav button{width:100%;padding:12px 8px;font-size:14px}
+  .month-controls{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:7px}
+  .month-controls input[type=month]{width:100%;min-width:0}
+  .month-controls select{grid-column:1/-1;width:100%}
+  .month-controls button{padding:9px 4px}
+  .fixture .actions button,.fixture .actions select{min-height:44px}
+  .fixture h3{font-size:16px}
+  #fixtureProposalList .actions{display:flex}
+}
 </style>
 </head>
 <body>
@@ -65,12 +88,24 @@
   <div id="app" class="hidden">
 <div class="toolbar spaced"><span id="signedIn" class="muted"></span><button id="logout" class="secondary">Sign out</button></div>
 <div class="cards" id="metrics"></div><div id="alert" class="notice" role="status"></div>
-<nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button></nav>
+<nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button><button class="secondary" data-tab="approvals">Approvals</button></nav>
 
-<section class="panel" id="fixtureProposalPanel">
+<section class="panel hidden" id="fixtureProposalPanel">
   <h3>Gibraltar FA — Fixture changes awaiting review</h3>
   <p class="muted">Proposals are not published automatically. Only new fixtures can be approved here; reschedules need manual review.</p>
-  <button class="secondary" id="refreshProposals" type="button">Refresh proposed changes</button>
+  <div class="month-controls">
+  <button type="button" class="secondary" id="proposalPrevMonth" aria-label="Previous month">‹</button>
+  <input type="month" id="proposalMonth" aria-label="Approval month">
+  <button type="button" class="secondary" id="proposalNextMonth" aria-label="Next month">›</button>
+  <select id="proposalLeague" aria-label="Filter approval league">
+    <option value="all">All leagues</option>
+    <option value="mens">Men's League</option>
+    <option value="womens">Women's League</option>
+    <option value="reserves">Reserve League</option>
+  </select>
+</div>
+<button class="secondary" id="refreshProposals" type="button">Refresh proposed changes</button>
+<p id="proposalCount" class="muted small"></p>
   <div id="fixtureProposalList" class="fixtures spaced"></div>
 </section>
 <div class="panel" id="releaseMatchesPanel">
@@ -86,7 +121,13 @@
   </button>
 </div>
 
-  <section id="fixtures"><div class="toolbar spaced"><h2>Match assignments</h2><select id="filter"><option value="all">All matches</option><option value="uncovered">Uncovered</option><option value="covered">Covered</option><option value="cancelled">Cancelled</option></select></div><div id="fixtureList" class="fixtures"></div><div class="panel spaced"><h3>Add fixture</h3><form id="addFixture" class="row"><input id="home" placeholder="Home team" required maxlength="100"><input id="away" placeholder="Away team" required maxlength="100"><input id="date" type="date" required><input id="time" type="time" required><button>Add fixture</button></form></div></section>
+  <section id="fixtures">
+<div class="month-controls">
+  <button type="button" class="secondary" id="fixturePrevMonth" aria-label="Previous month">‹</button>
+  <input type="month" id="fixtureMonth" aria-label="Fixture month">
+  <button type="button" class="secondary" id="fixtureNextMonth" aria-label="Next month">›</button>
+</div>
+<div class="toolbar spaced"><h2>Match assignments</h2><select id="filter"><option value="all">All matches</option><option value="uncovered">Uncovered</option><option value="covered">Covered</option><option value="cancelled">Cancelled</option></select></div><div id="fixtureList" class="fixtures"></div><div class="panel spaced"><h3>Add fixture</h3><form id="addFixture" class="row"><input id="home" placeholder="Home team" required maxlength="100"><input id="away" placeholder="Away team" required maxlength="100"><input id="date" type="date" required><input id="time" type="time" required><button>Add fixture</button></form></div></section>
 <section id="staff" class="hidden"><div class="panel"><h2>Registered first aiders</h2><div id="staffList"></div><form id="addStaff" class="row spaced"><input id="staffName" placeholder="First aider's name" required maxlength="80"><button>Add first aider</button></form><p class="muted small">Adding a name does not create a login account.</p></div></section>
 <section id="reports" class="hidden"><div class="panel"><h2>Monthly attendance summary</h2><label>Month <input type="month" id="month"></label><div id="reportTable" class="spaced"></div><button id="export">Download CSV report</button><p class="muted small">Only verified attendance counts towards completed matches. This is a check, not payroll.</p></div></section>
 <section id="adminPastEvents" class="panel">
@@ -124,7 +165,24 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_zKInVi2JAZl3iAXPE289Yw_I2dmdQPU';
 const db=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let state={matches:[],staff:[]};let currentUser=null;
+let state={matches:[],staff:[],proposals:[]};let currentUser=null;
+const currentMonth = () => {const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Gibraltar',year:'numeric',month:'2-digit'}).formatToParts(new Date());return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value;};
+function moveMonth(id,offset){
+  const field=$(id),value=field.value||currentMonth();
+  const [y,m]=value.split('-').map(Number);
+  const d=new Date(Date.UTC(y,m-1+offset,1));
+  field.value=d.toISOString().slice(0,7);
+  field.dispatchEvent(new Event('change'));
+}
+$('fixtureMonth').value=currentMonth();
+$('proposalMonth').value=currentMonth();
+$('fixturePrevMonth').addEventListener('click',()=>moveMonth('fixtureMonth',-1));
+$('fixtureNextMonth').addEventListener('click',()=>moveMonth('fixtureMonth',1));
+$('proposalPrevMonth').addEventListener('click',()=>moveMonth('proposalMonth',-1));
+$('proposalNextMonth').addEventListener('click',()=>moveMonth('proposalMonth',1));
+$('fixtureMonth').addEventListener('change',render);
+$('proposalMonth').addEventListener('change',renderProposalCards);
+$('proposalLeague').addEventListener('change',renderProposalCards);
 function notice(message){$('message').textContent=message;$('message').classList.toggle('hidden',!message)}
 
 function showLogin(message = '') {
@@ -406,35 +464,41 @@ await loadAvailableFixtures();
   showLogin("This account is not authorised.");
 }
 
-async function loadFixtureProposals(){
-  const container = $('fixtureProposalList');
-  if (!container) return;
-  const {data,error} = await db.from('fixture_proposals')
-    .select('id,proposal_type,league,home_team,away_team,proposed_date,proposed_time,existing_fixture_id')
-    .eq('review_status','pending').order('proposed_date').limit(300);
-  container.replaceChildren();
-  if(error){container.textContent='Unable to load proposals: '+error.message;return;}
-  if(!data?.length){container.textContent='No pending fixture changes.';return;}
-  for(const p of data){
+function renderProposalCards(){
+  const container=$('fixtureProposalList');container.replaceChildren();
+  const month=$('proposalMonth').value,league=$('proposalLeague').value;
+  const filtered=state.proposals.filter(p=>p.proposed_date.startsWith(month)&&(league==='all'||p.league===league));
+  $('proposalCount').textContent=filtered.length+' pending proposal(s) for this month'+(state.proposals.length>filtered.length?' · '+state.proposals.length+' total pending':'');
+  if(!filtered.length){container.textContent='No pending changes for this month. Use the arrows to view other months.';return;}
+  for(const p of filtered){
     const card=document.createElement('div');card.className='card';
     const heading=document.createElement('h4');heading.textContent=p.home_team+' vs '+p.away_team;
-    const info=document.createElement('p');
-    info.textContent=p.league+' — '+p.proposed_date+' '+String(p.proposed_time).slice(0,5)+' — '+p.proposal_type.replaceAll('_',' ');
+    const info=document.createElement('p');info.className='muted';
+    info.textContent=p.league+' · '+p.proposed_date+' · '+String(p.proposed_time).slice(0,5)+' · '+p.proposal_type.replaceAll('_',' ');
     const buttons=document.createElement('div');buttons.className='actions';
-    const reject=document.createElement('button');reject.className='secondary';reject.textContent='Reject';
-    buttons.append(reject);
+    const reject=document.createElement('button');reject.className='secondary';reject.textContent='Reject';buttons.append(reject);
     if(p.proposal_type==='possible_new_fixture'){
-      const approve=document.createElement('button');approve.textContent='Approve as unreleased fixture';
-      approve.addEventListener('click',()=>reviewProposal(p.id,'approve',approve));
-      buttons.prepend(approve);
-    } else {
+      const approve=document.createElement('button');approve.textContent='Approve (unreleased)';
+      approve.addEventListener('click',()=>reviewProposal(p.id,'approve',approve));buttons.prepend(approve);
+    }else{
       const note=document.createElement('p');note.className='muted';
-      note.textContent='Manual review required; this tool will not change an existing fixture.';
-      card.append(note);
+      note.textContent='Manual review needed; existing fixture will not be changed.';card.append(note);
     }
     reject.addEventListener('click',()=>reviewProposal(p.id,'reject',reject));
     card.append(heading,info,buttons);container.append(card);
   }
+}
+async function loadFixtureProposals(){
+  const container=$('fixtureProposalList');
+  const all=[];
+  for(let offset=0;offset<5000;offset+=1000){
+    const {data,error}=await db.from('fixture_proposals')
+      .select('id,proposal_type,league,home_team,away_team,proposed_date,proposed_time,existing_fixture_id')
+      .eq('review_status','pending').order('proposed_date').range(offset,offset+999);
+    if(error){container.textContent='Unable to load proposals: '+error.message;return;}
+    all.push(...data);if(data.length<1000)break;
+  }
+  state.proposals=all;renderProposalCards();
 }
 async function reviewProposal(id,decision,button){
   if(!confirm(decision==='approve'?'Create this new fixture as unreleased?':'Reject this proposed change?'))return;
@@ -538,8 +602,8 @@ function render() {
 const active = state.matches.filter(m => m.status === 'scheduled' && m.match_date >= today);const covered=active.filter(m=>m.assigned_staff_id).length;const open=active.length-covered;
 $('metrics').innerHTML=`<div class="card"><div class="metric">${active.length}</div><div class="muted">Scheduled matches</div></div><div class="card"><div class="metric green">${covered}</div><div class="muted">Covered</div></div><div class="card"><div class="metric red">${open}</div><div class="muted">Need ALS cover</div></div>`;
 $('alert').textContent=open?`⚠ ${open} match${open===1?'':'es'} currently need ALS cover.`:'✓ All scheduled matches have ALS cover.';
-const filter=$('filter').value;const list=state.matches.filter(m=>
-  m.match_date >= today &&
+const filter=$('filter').value;const selectedMonth=$('fixtureMonth').value;const list=state.matches.filter(m=>
+  m.match_date.startsWith(selectedMonth) &&
   (m.is_released === true || m.assigned_staff_id != null)
 ).filter(m=>filter==='all'||filter==='cancelled'&&m.status==='cancelled'||filter==='covered'&&m.status==='scheduled'&&m.assigned_staff_id||filter==='uncovered'&&m.status==='scheduled'&&!m.assigned_staff_id);
 $('fixtureList').innerHTML=list.map(m=>{const cancelled=m.status==='cancelled',name=staffName(m.assigned_staff_id),status=cancelled?'Cancelled':name?'Covered':'Needs ALS';const options=state.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');return `<article class="card fixture ${cancelled ? 'fixture-cancelled' : m.assigned_staff_id ? 'fixture-assigned' : m.is_released ? 'fixture-released' : 'fixture-admin'}"><div class="fixture-top"><span class="muted">${esc(m.match_date)} · ${esc(m.match_time?.slice(0,5))}</span><span class="pill ${cancelled?'cancelled':name?'ok':''}">${status}</span></div><h3>${esc(m.home_team)} vs ${esc(m.away_team)}</h3><p>${name?'Assigned: <strong>'+esc(name)+'</strong>':'No first aider assigned'}</p><div class="actions">${!cancelled&&!name?`<button class="secondary" data-action="cover-self" data-id="${m.id}">Cover myself</button>`:''}${!cancelled&&!name?`<select aria-label="Select first aider" id="assign-${m.id}"><option value="">Choose first aider</option>${options}</select><button data-action="assign" data-id="${m.id}">Assign</button>`:''}${name?`<button class="secondary" data-action="release" data-id="${m.id}">Release assignment</button>`:''}${!cancelled&&name?`<label><input type="checkbox" data-action="attendance" data-id="${m.id}" ${m.attended?'checked':''}> Attendance verified</label>`:''}<button class="secondary" data-action="cancel" data-id="${m.id}">${cancelled?'Restore fixture':'Mark cancelled'}</button></div></article>`}).join('')||'<p>No matches in this category.</p>';
@@ -694,6 +758,8 @@ document.querySelectorAll('nav button').forEach(button => {
   button.addEventListener('click', () => {
     document.getElementById('releaseMatchesPanel')
       .classList.toggle('hidden', button.dataset.tab !== 'fixtures');
+    document.getElementById('fixtureProposalPanel')
+      .classList.toggle('hidden', button.dataset.tab !== 'approvals');
   });
 });
   document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('secondary',x!==b)});['fixtures','staff','reports'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))}));
