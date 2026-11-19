@@ -39,6 +39,7 @@ button, select, input {min-height:44px}
 #fixtureProposalPanel label{cursor:pointer}
 #releaseSelectedBtn{width:100%;position:sticky;bottom:8px;z-index:2}
 #releaseWeekControls input{width:100%;min-height:44px}
+#fixtureProposalList .card>button{min-height:44px;margin-left:24px}
 #fixtureProposalPanel.hidden{display:none}
 @media(max-width:600px){
   main{padding:10px}
@@ -94,8 +95,8 @@ button, select, input {min-height:44px}
 <nav><button class="active" data-tab="fixtures">Fixtures</button><button class="secondary" data-tab="staff">First aiders</button><button class="secondary" data-tab="reports">Monthly report</button><button class="secondary" data-tab="approvals">Select &amp; Release</button></nav>
 
 <section class="panel hidden" id="fixtureProposalPanel">
-  <h3>Select &amp; Release Matches</h3>
-  <p class="muted">Choose matches for medical cover, then release them directly to first aiders. Select individual matches or all visible matches for a week or month.</p>
+  <h3>My first pick &amp; Release Matches</h3>
+  <p class="muted">First, reserve the matches you personally want to cover using “I’ll cover this match”. Then release the remaining matches to other first aiders.</p>
   <div class="month-controls">
   <button type="button" class="secondary" id="proposalPrevMonth" aria-label="Previous month">‹</button>
   <input type="month" id="proposalMonth" aria-label="Approval month">
@@ -489,7 +490,27 @@ function renderProposalCards(){
     const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=selectedReleases.has(releaseKey(item.type,item.id));checkbox.style.flexShrink='0';
     checkbox.addEventListener('change',()=>{const k=releaseKey(item.type,item.id);if(checkbox.checked)selectedReleases.add(k);else selectedReleases.delete(k);renderProposalCards();});
     const detail=document.createElement('span');detail.textContent=item.home+' vs '+item.away+' · '+String(item.time||'').slice(0,5)+' · '+item.league;
-    label.append(checkbox,detail);container.append(label);
+    label.append(checkbox,detail);
+    const claim=document.createElement('button');claim.type='button';claim.className='secondary';claim.textContent="I'll cover this match";claim.style.flexShrink='0';
+    claim.addEventListener('click',async e=>{
+      e.preventDefault();e.stopPropagation();
+      if(!confirm('Assign '+item.home+' vs '+item.away+' to yourself before releasing it?'))return;
+      claim.disabled=true;
+      try{
+        const {error}=await db.rpc('admin_claim_first_pick',{
+          p_proposal_id:item.type==='proposal'?item.id:null,
+          p_fixture_id:item.type==='fixture'?item.id:null
+        });
+        if(error)throw error;
+        selectedReleases.delete(releaseKey(item.type,item.id));
+        await refresh();
+        alert('Match assigned to you. It has not been released to other first aiders.');
+      }catch(error){alert('Unable to claim match: '+error.message);}
+      finally{claim.disabled=false;}
+    });
+    const wrap=document.createElement('div');wrap.className='card';wrap.style.marginBottom='8px';
+    label.className='';label.style.marginBottom='6px';label.style.flexWrap='wrap';
+    wrap.append(label,claim);container.append(wrap);
   }
   const other=state.proposals.filter(p=>p.proposal_type!=='possible_new_fixture'&&p.proposed_date.startsWith($('proposalMonth').value));
   if(other.length){const warning=document.createElement('p');warning.className='muted';warning.textContent=other.length+' possible reschedule/ambiguous change(s) require separate manual review; they cannot be released here.';container.append(warning);}
