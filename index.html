@@ -496,7 +496,7 @@ function renderProposalCards(){
 }
 $('selectAllRelease').addEventListener('change',e=>{for(const item of eligibleReleaseItems()){const key=releaseKey(item.type,item.id);if(e.target.checked)selectedReleases.add(key);else selectedReleases.delete(key);}renderProposalCards();});
 $('releasePeriod').addEventListener('change',()=>{$('releaseWeekControls').classList.toggle('hidden',$('releasePeriod').value!=='week');renderProposalCards();});
-$('releaseWeek').value=new Date().toISOString().slice(0,10);
+const todayForWeek=new Date();todayForWeek.setDate(todayForWeek.getDate()-(todayForWeek.getDay()+6)%7);$('releaseWeek').value=todayForWeek.toISOString().slice(0,10);
 $('releaseWeek').addEventListener('change',renderProposalCards);
 $('releaseSelectedBtn').addEventListener('click',async()=>{
   const items=eligibleReleaseItems().filter(x=>selectedReleases.has(releaseKey(x.type,x.id)));
