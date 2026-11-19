@@ -52,6 +52,15 @@ console.log("Fixture cards found:", items.length);
   (html.match(/upcoming-boxes/gi) || []).length
 );
       console.log("Dedicated matches page:", league.url + "/matches");
+      const calendarResponse = await fetch(league.url + "/matches");
+const calendarHtml = await calendarResponse.text();
+
+console.log("Calendar HTTP status:", calendarResponse.status);
+console.log(
+  "Calendar match sections:",
+  (calendarHtml.match(/<div\b[^>]*class=["'][^"']*\bmatch\b[^"']*["'][^>]*>/gi) || []).length
+);
+console.log("Venue mentioned:", /venue|stadium/i.test(calendarHtml));
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
       console.log(
   "All fixture dates:",
