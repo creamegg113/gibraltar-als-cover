@@ -78,6 +78,13 @@ console.log(
   "Possible upcoming calendar match:",
   upcomingCalendarMatch?.[0] || "No upcoming match identified"
 );
+      console.log(
+  "Calendar date headings:",
+  [...calendarHtml.matchAll(/<h[2-6]\b[^>]*>[\s\S]*?<\/h[2-6]>/gi)]
+    .map(m => m[0].replace(/<[^>]+>/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 20)
+);
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
       console.log(
   "All fixture dates:",
