@@ -18,11 +18,25 @@ jobs:
         env:
           BROWSERLESS_API_KEY: ${{ secrets.BROWSERLESS_API_KEY }}
         run: node scripts/browserless-fixture-monitor.js
+      - name: Compare with Supabase (read-only, optional)
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Supabase secrets missing; comparison skipped (no writes)."
+          else
+            npm install --no-save --no-package-lock @supabase/supabase-js@2
+            node scripts/compare-fixtures-readonly.js
+          fi
       - name: Save snapshot and diagnostics even if a league fails
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: first-response-fixture-snapshot
-          path: fixture-monitor-output/snapshot.json
+          path: |
+            fixture-monitor-output/snapshot.json
+            fixture-monitor-output/comparison.json
           if-no-files-found: warn
           retention-days: 14
