@@ -69,6 +69,15 @@ console.log(
   "First calendar match HTML:",
   firstCalendarMatch?.[0] || "No match found"
 );
+
+const upcomingCalendarMatch = calendarHtml.match(
+  /<div\b[^>]*class=["'][^"']*\bmatch\b[^"']*["'][^>]*>[\s\S]{0,2000}?(?:class=["']time["']|class=["']date["']|class=["']fixture["'])/i
+);
+
+console.log(
+  "Possible upcoming calendar match:",
+  upcomingCalendarMatch?.[0] || "No upcoming match identified"
+);
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
       console.log(
   "All fixture dates:",
