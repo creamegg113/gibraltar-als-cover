@@ -37,6 +37,9 @@ button, select, input {min-height:44px}
 #fixtureProposalList h4{margin:0 0 8px}
 #fixtureProposalList .actions button{flex:1}
 #fixtureProposalPanel label{cursor:pointer}
+.release-view-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.release-view-toggle button{min-height:46px}
+#releaseWeekControls .month-controls{margin:8px 0}
 #releaseSelectedBtn{width:100%;position:sticky;bottom:8px;z-index:2}
 #releaseWeekControls input{width:100%;min-height:44px}
 #fixtureProposalList .card>button{min-height:44px;margin-left:24px}
@@ -108,8 +111,11 @@ button, select, input {min-height:44px}
     <option value="reserves">Reserve League</option>
   </select>
 </div>
-<select id="releasePeriod" aria-label="Release period"><option value="month">Monthly</option><option value="week">Weekly</option></select>
-<div id="releaseWeekControls" class="hidden"><label for="releaseWeek">Week beginning</label><input type="date" id="releaseWeek"></div>
+<div class="release-view-toggle" role="group" aria-label="View matches by week or month">
+<button type="button" id="viewMonthly" class="active" aria-pressed="true">Monthly view</button>
+<button type="button" id="viewWeekly" class="secondary" aria-pressed="false">Weekly view</button>
+</div>
+<div id="releaseWeekControls" class="hidden"><div class="month-controls"><button type="button" class="secondary" id="releasePrevWeek" aria-label="Previous week">‹</button><input type="date" id="releaseWeek" aria-label="Week starting"><button type="button" class="secondary" id="releaseNextWeek" aria-label="Next week">›</button></div></div>
 <button class="secondary" id="refreshProposals" type="button">Refresh Gibraltar FA matches</button>
 <div class="toolbar spaced"><label><input type="checkbox" id="selectAllRelease"> Select all displayed</label><span id="releaseSelectedCount">0 selected</span></div>
 <button type="button" id="releaseSelectedBtn" disabled>Release selected matches</button>
@@ -460,12 +466,13 @@ await loadAvailableFixtures();
 }
 
 const selectedReleases=new Set();
+let releaseViewMode='month';
 const releaseKey=(type,id)=>type+':'+id;
 function eligibleReleaseItems(){
   const month=$('proposalMonth').value,league=$('proposalLeague').value;
   const week=$('releaseWeek').value;
   const weekEnd=week?new Date(new Date(week+'T12:00:00Z').getTime()+7*86400000).toISOString().slice(0,10):'';
-  const inPeriod=date=>date.startsWith(month)&&($('releasePeriod').value!=='week'||(week&&date>=week&&date<weekEnd));
+  const inPeriod=date=>releaseViewMode==='week'?(week&&date>=week&&date<weekEnd):date.startsWith(month);
   const pending=state.proposals.filter(p=>p.proposal_type==='possible_new_fixture'&&inPeriod(p.proposed_date)&&(league==='all'||p.league===league))
     .map(p=>({type:'proposal',id:p.id,date:p.proposed_date,time:p.proposed_time,home:p.home_team,away:p.away_team,league:p.league}));
   const existing=state.matches.filter(m=>m.status==='scheduled'&&m.is_released===false&&m.assigned_staff_id==null&&inPeriod(m.match_date))
@@ -512,11 +519,32 @@ function renderProposalCards(){
     label.className='';label.style.marginBottom='6px';label.style.flexWrap='wrap';
     wrap.append(label,claim);container.append(wrap);
   }
-  const other=state.proposals.filter(p=>p.proposal_type!=='possible_new_fixture'&&p.proposed_date.startsWith($('proposalMonth').value));
+  const other=state.proposals.filter(p=>p.proposal_type!=='possible_new_fixture'&&(releaseViewMode==='month'?p.proposed_date.startsWith($('proposalMonth').value):(p.proposed_date>=$('releaseWeek').value&&p.proposed_date<new Date(new Date($('releaseWeek').value+'T12:00:00Z').getTime()+7*86400000).toISOString().slice(0,10))));
   if(other.length){const warning=document.createElement('p');warning.className='muted';warning.textContent=other.length+' possible reschedule/ambiguous change(s) require separate manual review; they cannot be released here.';container.append(warning);}
 }
 $('selectAllRelease').addEventListener('change',e=>{for(const item of eligibleReleaseItems()){const key=releaseKey(item.type,item.id);if(e.target.checked)selectedReleases.add(key);else selectedReleases.delete(key);}renderProposalCards();});
-$('releasePeriod').addEventListener('change',()=>{$('releaseWeekControls').classList.toggle('hidden',$('releasePeriod').value!=='week');renderProposalCards();});
+function setReleaseView(mode){
+  releaseViewMode=mode;
+  $('viewMonthly').classList.toggle('secondary',mode!=='month');
+  $('viewWeekly').classList.toggle('secondary',mode!=='week');
+  $('viewMonthly').classList.toggle('active',mode==='month');
+  $('viewWeekly').classList.toggle('active',mode==='week');
+  $('viewMonthly').setAttribute('aria-pressed',String(mode==='month'));
+  $('viewWeekly').setAttribute('aria-pressed',String(mode==='week'));
+  $('releaseWeekControls').classList.toggle('hidden',mode!=='week');
+  $('proposalMonth').parentElement.classList.toggle('hidden',mode==='week');
+  renderProposalCards();
+}
+$('viewMonthly').addEventListener('click',()=>setReleaseView('month'));
+$('viewWeekly').addEventListener('click',()=>setReleaseView('week'));
+function moveReleaseWeek(delta){
+  const d=new Date($('releaseWeek').value+'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate()+7*delta);
+  $('releaseWeek').value=d.toISOString().slice(0,10);
+  renderProposalCards();
+}
+$('releasePrevWeek').addEventListener('click',()=>moveReleaseWeek(-1));
+$('releaseNextWeek').addEventListener('click',()=>moveReleaseWeek(1));
 const todayForWeek=new Date();todayForWeek.setDate(todayForWeek.getDate()-(todayForWeek.getDay()+6)%7);$('releaseWeek').value=todayForWeek.toISOString().slice(0,10);
 $('releaseWeek').addEventListener('change',renderProposalCards);
 $('releaseSelectedBtn').addEventListener('click',async()=>{
