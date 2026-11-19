@@ -61,6 +61,14 @@ console.log(
   (calendarHtml.match(/<div\b[^>]*class=["'][^"']*\bmatch\b[^"']*["'][^>]*>/gi) || []).length
 );
 console.log("Venue mentioned:", /venue|stadium/i.test(calendarHtml));
+      const firstCalendarMatch = calendarHtml.match(
+  /<div\b[^>]*class=["'][^"']*\bmatch\b[^"']*["'][^>]*>[\s\S]{0,2000}/i
+);
+
+console.log(
+  "First calendar match HTML:",
+  firstCalendarMatch?.[0] || "No match found"
+);
       console.log("First fixture card:", items[0]?.[1] || "No fixtures found");
       console.log(
   "All fixture dates:",
