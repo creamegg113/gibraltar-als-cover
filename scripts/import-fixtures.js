@@ -61,7 +61,7 @@ console.log("Page preview:", html.slice(0, 500));
    
 if (isCalendarLeague) {
   console.log("Calendar HTML available:", html.includes("competition-calendar"));
- console.log("Upcoming calendar sample:", html.match(/<div class="match">[\s\S]*?<p class="result">\s*\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}:\d{2}[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/)?.[0]?.slice(0, 2000) || "No upcoming sample found"); 
+ console.log("Calendar fixture date/time samples:", [...html.matchAll(/<p[^>]*class=["'][^"']*(?:date|time)[^"']*["'][^>]*>[\s\S]*?<\/p>/gi)].slice(0, 5).map(m => m[0]));
   console.log("Calendar extraction not yet implemented:", league.name);
   continue;
 }
